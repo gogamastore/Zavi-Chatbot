@@ -22,7 +22,7 @@
     "rules": "firestore.rules"
   },
   "apphosting": {
-    "backendId": "zavi-web",
+    "backendId": "zavi-assistant",
     "rootDir": "/",
     "ignore": [
       "node_modules",
