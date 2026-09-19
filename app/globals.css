@@ -1,26 +1,153 @@
 @import "tailwindcss";
 
+/* --------------------------------------------------------------------------
+   Zavi — WhatsApp Assistant design tokens
+   -------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f0f2f5;
+  --surface: #ffffff;
+  --surface-2: #f7f9fb;
+  --foreground: #111b21;
+  --muted: #667781;
+  --border: #e4e8eb;
+
+  /* WhatsApp brand palette */
+  --wa-teal: #075e54;
+  --wa-teal-dark: #054c44;
+  --wa-green: #25d366;
+  --wa-green-dark: #1da851;
+  --wa-light: #dcf8c6; /* outgoing bubble */
+  --wa-chat-bg: #e5ddd5;
+
+  --accent: var(--wa-teal);
+  --radius: 12px;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-wa-teal: var(--wa-teal);
+  --color-wa-green: var(--wa-green);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, Segoe UI, Roboto,
+    Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Utility helpers layered on top of Tailwind */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.55rem 1rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--wa-teal);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--wa-teal-dark);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--foreground);
+  border-color: var(--border);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--foreground);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: var(--wa-green);
+  box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.15);
+}
+.label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+
+/* status colors */
+.status-baru { background: #e7f0ff; color: #1d4ed8; }
+.status-diproses { background: #fff4e0; color: #b45309; }
+.status-selesai { background: #e3f9e5; color: #1a7f37; }
+.status-batal { background: #f3f4f6; color: #6b7280; }
+
+.src-ai { background: #ede9fe; color: #6d28d9; }
+.src-rule { background: #e0f2fe; color: #0369a1; }
+.src-menu { background: #ecfccb; color: #4d7c0f; }
+.src-human { background: #fee2e2; color: #b91c1c; }
+.src-system { background: #f3f4f6; color: #6b7280; }
+
+/* WhatsApp chat pattern background */
+.chat-bg {
+  background-color: #efeae2;
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23d9d2c8' fill-opacity='0.35'%3E%3Ccircle cx='4' cy='4' r='1.2'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #cbd2d6; border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }

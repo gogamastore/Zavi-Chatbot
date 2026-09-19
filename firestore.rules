@@ -1,0 +1,189 @@
+rules_version = '2';
+
+// =============================================================================
+// Zavi — WA Assistant :: Firestore Security Rules
+//
+// SIKAP DASAR: TOLAK SEMUA AKSES KLIEN.
+//
+// Ini keputusan sengaja, bukan kemalasan. Alasannya:
+//
+//   Browser TIDAK PERNAH menyentuh Firestore secara langsung. Lihat
+//   lib/firebase/client.ts — hanya `firebase/auth` yang diimpor, bukan
+//   `firebase/firestore`. Seluruh data mengalir lewat API route kita sendiri
+//   yang memakai firebase-admin, dan Admin SDK MELEWATI rules ini sepenuhnya.
+//
+//   Karena itu, setiap izin yang diberikan di sini menambah permukaan serangan
+//   tanpa menambah satu pun fungsi. Nol manfaat, ada risiko.
+//
+// Apa yang dilindungi dengan menolak semuanya:
+//
+//   tenants/{id}          memuat `whatsappToken` — RAHASIA. Satu izin baca
+//                         saja membocorkan token WhatsApp semua klien.
+//   subscriptions/{id}    menentukan fitur terbuka atau terkunci. Satu izin
+//                         tulis = langganan gratis selamanya bagi siapa pun.
+//   payments/{orderId}    izin tulis = pembayaran palsu, fitur terbuka tanpa
+//                         membayar.
+//   tenants/{id}/chats    percakapan pelanggan UMKM — data pribadi pihak
+//                         ketiga yang dipercayakan kepada klien kita.
+//
+// Perlu akses klien langsung suatu hari nanti? Jangan melonggarkan berkas ini
+// secara menyeluruh. Buka SATU jalur spesifik, dengan validasi penuh — ada
+// cetak biru di bagian paling bawah.
+//
+// PENTING: rules ini melindungi akses dari SDK klien (browser/Flutter).
+// Rules TIDAK berlaku untuk Admin SDK. Keamanan sesungguhnya untuk jalur
+// aplikasi ada di API route: verifikasi ID token (lib/auth/server.ts) dan
+// resolusi tenant dari token, tidak pernah dari input klien
+// (lib/tenant/context.ts).
+// =============================================================================
+
+// =============================================================================
+// Model data yang diasumsikan
+// =============================================================================
+//
+// tenants/{tenantId}
+//   ownerUid              string   (wajib)  Firebase Auth uid pemilik
+//   ownerEmail            string   (wajib)  PII
+//   businessName          string   (wajib)
+//   templateId            string   (wajib)  resto|toko|klinik|jasa|custom
+//   whatsappPhoneNumberId string   (opsi)   id nomor pengirim
+//   whatsappWabaId        string   (opsi)
+//   whatsappToken         string   (opsi)   RAHASIA — token akses WhatsApp
+//   whatsappDisplayNumber string   (opsi)
+//   createdAt, updatedAt  number   (wajib)  epoch ms
+//
+// tenants/{tenantId}/chats/{id}        ChatMessage — isi percakapan pelanggan
+// tenants/{tenantId}/orders/{id}       Order       — nama & nomor pemesan (PII)
+// tenants/{tenantId}/knowledge/{id}    KnowledgeDoc
+// tenants/{tenantId}/config/{business|bot|ai}
+//
+// subscriptions/{tenantId}   status, planId, trialEndsAt, currentPeriodEnd,
+//                            aiRepliesUsed  → MENENTUKAN HAK AKSES
+// payments/{orderId}         tenantId, planId, amountIdr, status, snapToken
+// users/{uid}                { tenantId }   → pemetaan uid ke tenant
+// processedMessages/{msgId}  { at, expiresAt } → penolak pesan ganda webhook
+//
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Tidak ada fungsi bantu di sini — sengaja.
+    //
+    // Selama semuanya ditolak, fungsi bantu hanyalah kode mati yang memicu
+    // peringatan kompilasi. Pola yang benar untuk dipakai saat membuka jalur
+    // tersimpan lengkap di cetak biru pada bagian bawah berkas ini.
+
+    // -------------------------------------------------------------------------
+    // Data tenant — TOLAK SEMUA
+    //
+    // Dokumen tenant memuat whatsappToken (rahasia) dan ownerEmail (PII).
+    // Subcollection memuat percakapan dan pesanan pelanggan UMKM — data pihak
+    // ketiga. Tidak ada satu pun yang boleh dibaca langsung dari browser.
+    // -------------------------------------------------------------------------
+    match /tenants/{tenantId} {
+      allow read, write: if false;
+
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Langganan — TOLAK SEMUA, terutama tulis
+    //
+    // Dokumen inilah yang menentukan akun terkunci atau terbuka. Izin tulis
+    // sekecil apa pun di sini setara memberikan langganan gratis selamanya.
+    // Hanya webhook Midtrans (lewat Admin SDK) yang boleh mengubahnya.
+    // -------------------------------------------------------------------------
+    match /subscriptions/{tenantId} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Pembayaran — TOLAK SEMUA
+    //
+    // Izin tulis memungkinkan seseorang menandai pembayarannya sendiri lunas.
+    // Status hanya boleh berubah lewat notifikasi Midtrans yang tanda tangannya
+    // sudah diverifikasi.
+    // -------------------------------------------------------------------------
+    match /payments/{orderId} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Pemetaan uid → tenant — TOLAK SEMUA
+    //
+    // Izin tulis memungkinkan seseorang menunjuk akunnya ke tenant milik orang
+    // lain, lalu membaca seluruh data bisnis itu lewat API kita.
+    // -------------------------------------------------------------------------
+    match /users/{uid} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Penolak pesan ganda webhook — TOLAK SEMUA
+    //
+    // Murni catatan internal. Izin tulis memungkinkan orang memalsukan "sudah
+    // diproses" sehingga pesan pelanggan yang asli ditelan diam-diam.
+    // -------------------------------------------------------------------------
+    match /processedMessages/{messageId} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Jaring pengaman: apa pun yang belum disebut di atas juga ditolak.
+    //
+    // Collection baru yang ditambahkan nanti otomatis tertutup, bukan terbuka.
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// =============================================================================
+// CETAK BIRU — kalau suatu hari klien perlu membaca Firestore langsung
+// =============================================================================
+//
+// Contoh paling mungkin: app Flutter ingin mendengarkan chat secara real-time
+// tanpa polling ke API. Kalau itu terjadi, JANGAN melonggarkan berkas ini
+// secara menyeluruh. Buka satu jalur saja, lengkap dengan fungsi bantunya:
+//
+//   function isAuthenticated() {
+//     return request.auth != null;
+//   }
+//
+//   // Tenant milik pengguna yang login, dibaca dari pemetaan users/{uid}.
+//   // JANGAN PERNAH mempercayai tenantId yang dikirim klien.
+//   function ownsTenant(tenantId) {
+//     return isAuthenticated() &&
+//       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId;
+//   }
+//
+//   match /tenants/{tenantId}/chats/{chatId} {
+//     // Baca saja, dan hanya untuk pemilik tenant. Tetap tidak boleh menulis —
+//     // pesan hanya boleh lahir dari mesin bot.
+//     allow read: if ownsTenant(tenantId);
+//     allow write: if false;
+//   }
+//
+// Catatan: aturan spesifik seperti di atas harus ditulis SEBELUM jaring
+// pengaman `match /{document=**}`, dan jalur chats harus dikeluarkan dari
+// `match /tenants/{tenantId}/{document=**}` yang menolak semuanya — kalau
+// tidak, penolakan itu tetap menang.
+//
+// Tiga hal yang harus diperiksa sebelum membuka jalur apa pun:
+//
+//   1. Apakah dokumen itu memuat rahasia atau PII pihak ketiga? Dokumen tenant
+//      memuat whatsappToken — jalur itu TIDAK BOLEH dibuka apa adanya. Pindahkan
+//      rahasianya ke subcollection terpisah lebih dulu.
+//   2. Apakah cukup baca saja? Hampir selalu ya. Tulis dari klien membuka
+//      pintu perusakan skema dan peningkatan hak akses.
+//   3. Apakah `get()` pada users/{uid} menambah biaya baca per permintaan? Ya —
+//      satu baca tambahan per evaluasi. Pertimbangkan custom claim di ID token
+//      kalau jalurnya ramai.
+//
+// Setiap pembukaan jalur wajib diuji ulang dengan SDK klien: pastikan pemilik
+// bisa membaca miliknya, dan tenant lain TIDAK bisa.
+// =============================================================================

@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -c safe.directory=\"D:/Zavi Wa Assistant/Zavi_Web\" log --oneline -10)",
+      "Bash(git -c safe.directory=\"D:/Zavi Wa Assistant/Zavi_Web\" status --short)",
+      "Bash(cd \"D:/Zavi Wa Assistant\" && echo \"=== Sisa rujukan 'web/' di dokumen ===\"; grep -rn --include=\"*.md\" -E '\\(\\\\bweb/|Zavi-Web|= .web.|di folder .web\\)' . --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.git 2>/dev/null || echo \"\\(bersih\\)\")",
+      "Read(//d/Zavi Wa Assistant/**)",
+      "Bash(node -e ' *)",
+      "Bash(npm run *)",
+      "Bash(curl -s --max-time 40 http://localhost:3000/api/me)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\('demo        :',j.demo\\);console.log\\('tenant      :',j.tenant?.id\\);console.log\\('status      :',j.entitlement?.status,'| terkunci:',j.entitlement?.locked\\);console.log\\('paket       :',j.plan?.name\\);console.log\\('paket dijual:',j.plans.map\\(p=>p.name+' '+p.priceIdr\\).join\\(', '\\)\\);}\\)\")",
+      "Bash(curl -s --max-time 40 http://localhost:3000/api/templates)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{JSON.parse\\(d\\).templates.forEach\\(t=>console.log\\('  '+t.id.padEnd\\(8\\)+t.name.padEnd\\(30\\)+t.jumlahAturan+' aturan'\\)\\)}\\)\")",
+      "Bash(curl -s --max-time 40 -X PUT http://localhost:3000/api/bot-config -H \"Content-Type: application/json\" -d '{\"resetKeTemplate\":\"resto\"}')",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\('template:',j.botConfig?.templateId,'| aturan:',j.botConfig?.rules?.length,'| direset:',j.direset\\)}\\)\")",
+      "Bash(cp \"C:/Users/USER/AppData/Local/Temp/claude/d--Zavi-Wa-Assistant-Zavi-Web/2468a96c-ee5f-4a1a-8005-60b8d2557b58/scratchpad/lock.js\" ./_tmp-lock.js)",
+      "Bash(node ./_tmp-lock.js \"t_CGCSyOujmbMlbaebgpEx\" \"zavi-e2e-1789822488447@example.com\")",
+      "Bash(node ./_tmp-pay.js)",
+      "Bash(git add *)",
+      "Bash(grep -E \"^\\\\.env|adminsdk.*\\\\.json$\")"
+    ]
+  }
+}
