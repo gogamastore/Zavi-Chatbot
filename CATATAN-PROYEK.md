@@ -90,6 +90,22 @@ D:\Zavi Wa Assistant\
 > Console. Alur lengkap daftar → trial 3 hari → terkunci → bayar → terbuka
 > otomatis sudah diverifikasi end-to-end dengan akun sungguhan.
 
+### 🔜 Diputuskan, dikerjakan nanti
+
+**Peran owner + menu khusus owner.** Saat ini Zavi sama sekali tidak punya
+konsep admin platform: tiap akun otomatis jadi pemilik tenant-nya sendiri,
+tidak lebih. Pemilik Zavi belum punya pintu masuk untuk melihat semua klien,
+memantau siapa yang akan habis masa langganannya, atau memperpanjang manual
+saat pembayaran bermasalah — semuanya masih lewat Firestore Console.
+
+Rencana saat dikerjakan:
+- Penanda admin lewat **custom claim Firebase Auth** (`admin: true`), bukan
+  field `role` di dokumen. Claim hanya bisa diberikan lewat Admin SDK,
+  sehingga pengguna tidak mungkin memberikannya ke dirinya sendiri.
+- Halaman `/admin` yang hanya terbuka untuk pemegang claim itu: daftar tenant,
+  status langganan, pemakaian AI lintas klien (ini biaya platform), dan
+  tombol perpanjang manual.
+
 ### ⏳ Belum / langkah berikutnya
 1. **Daftarkan Payment Notification URL** di Midtrans Dashboard →
    `https://<domain>/api/payment/notification`. **Penghalang nomor satu.**
