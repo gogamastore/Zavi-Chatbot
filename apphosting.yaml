@@ -1,0 +1,144 @@
+# =============================================================================
+# Firebase App Hosting — konfigurasi backend Zavi
+#
+# Berkas ini AMAN di-commit: rahasia tidak ditulis di sini, hanya DIRUJUK
+# berdasarkan nama dari Cloud Secret Manager.
+#
+# Kenapa berkas ini wajib ada: seluruh konfigurasi Zavi selama ini hidup di
+# .env.local, yang gitignored. Tanpa apphosting.yaml, aplikasi yang ter-deploy
+# berjalan TANPA kredensial apa pun — Firestore, AI, Midtrans, dan WhatsApp
+# semuanya mati.
+#
+# Sebelum deploy pertama, buat setiap secret di bawah dengan:
+#   npx -y firebase-tools@latest apphosting:secrets:set NAMA_SECRET
+# =============================================================================
+
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  # Mulai dari 0 supaya hemat saat belum ada pelanggan. Naikkan ke 1 begitu
+  # klien asli masuk — cold start membuat webhook WhatsApp lambat membalas,
+  # dan Meta punya batas waktu.
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+
+env:
+  # ---------------------------------------------------------------------------
+  # Firestore
+  #
+  # TIDAK ADA kredensial di sini — sengaja. Di Cloud Run, Firebase Admin memakai
+  # Application Default Credentials dari service account yang melekat pada
+  # container. Tidak perlu FIREBASE_PRIVATE_KEY sama sekali, dan itu justru
+  # lebih aman daripada menyimpan kunci.
+  #
+  # lib/config.ts mendeteksi Cloud Run lewat K_SERVICE; FIREBASE_USE_ADC di
+  # bawah hanyalah penegasan eksplisit.
+  # ---------------------------------------------------------------------------
+  - variable: FIREBASE_USE_ADC
+    value: "true"
+    availability: [RUNTIME]
+
+  # WAJIB: database project ini bernama "default", BUKAN "(default)".
+  # Tanpa baris ini, SDK mencari "(default)" dan gagal dengan 5 NOT_FOUND.
+  - variable: FIREBASE_DATABASE_ID
+    value: default
+    availability: [RUNTIME]
+
+  - variable: FIREBASE_PROJECT_ID
+    value: zavi-assistant
+    availability: [RUNTIME]
+
+  # ---------------------------------------------------------------------------
+  # Mode demo — WAJIB mati di produksi.
+  #
+  # Kode sudah menolak mode demo saat NODE_ENV=production, tapi dinyatakan
+  # eksplisit di sini supaya tidak ada yang bergantung pada satu lapis saja.
+  # ---------------------------------------------------------------------------
+  - variable: ALLOW_DEMO_TENANT
+    value: "false"
+    availability: [RUNTIME]
+
+  # ---------------------------------------------------------------------------
+  # Firebase Auth untuk browser.
+  #
+  # availability WAJIB memuat BUILD: Next.js menanamkan nilai NEXT_PUBLIC_*
+  # ke dalam bundel saat build. Kalau hanya RUNTIME, nilainya kosong di browser
+  # dan login gagal tanpa pesan yang jelas.
+  # ---------------------------------------------------------------------------
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyAunZv70ueUxdJS_O_ghoLIHK7l4L2rqDY
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: zavi-assistant.firebaseapp.com
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: zavi-assistant
+    availability: [BUILD, RUNTIME]
+
+  # ---------------------------------------------------------------------------
+  # AI
+  # ---------------------------------------------------------------------------
+  - variable: ANTHROPIC_MODEL
+    value: claude-sonnet-5
+    availability: [RUNTIME]
+  - variable: ANTHROPIC_API_KEY
+    secret: ANTHROPIC_API_KEY
+    availability: [RUNTIME]
+
+  # ---------------------------------------------------------------------------
+  # WhatsApp Cloud API
+  # ---------------------------------------------------------------------------
+  - variable: GRAPH_API_VERSION
+    value: v21.0
+    availability: [RUNTIME]
+  - variable: PHONE_NUMBER_ID
+    value: "1318291108036694"
+    availability: [RUNTIME]
+  # Token Pengguna Sistem platform — berlaku untuk semua WABA klien.
+  - variable: WHATSAPP_TOKEN
+    secret: WHATSAPP_TOKEN
+    availability: [RUNTIME]
+  # Dicocokkan Meta saat verifikasi webhook. Rahasia: siapa pun yang tahu ini
+  # bisa mendaftarkan webhook palsu.
+  - variable: VERIFY_TOKEN
+    secret: VERIFY_TOKEN
+    availability: [RUNTIME]
+  # Tanpa ini webhook MENOLAK semua permintaan di produksi — disengaja.
+  - variable: META_APP_SECRET
+    secret: META_APP_SECRET
+    availability: [RUNTIME]
+
+  # ---------------------------------------------------------------------------
+  # Midtrans
+  #
+  # MIDTRANS_IS_PRODUCTION tetap "false" sampai benar-benar siap menerima uang.
+  # Saat go-live: ubah kedua baris ini ke "true" DAN ganti secret + client key
+  # ke pasangan produksi. Key sandbox dan produksi sama bentuknya, jadi tidak
+  # bisa dibedakan otomatis — lihat lib/billing/midtrans.ts.
+  # ---------------------------------------------------------------------------
+  - variable: MIDTRANS_IS_PRODUCTION
+    value: "false"
+    availability: [RUNTIME]
+  - variable: NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION
+    value: "false"
+    availability: [BUILD, RUNTIME]
+  - variable: MIDTRANS_MERCHANT_ID
+    value: M266617470
+    availability: [RUNTIME]
+  - variable: MIDTRANS_CLIENT_KEY
+    value: Mid-client-9qqCPfKKAI93dcu1
+    availability: [RUNTIME]
+  - variable: NEXT_PUBLIC_MIDTRANS_CLIENT_KEY
+    value: Mid-client-9qqCPfKKAI93dcu1
+    availability: [BUILD, RUNTIME]
+  - variable: MIDTRANS_SERVER_KEY
+    secret: MIDTRANS_SERVER_KEY
+    availability: [RUNTIME]
+
+  # ---------------------------------------------------------------------------
+  # Rekonsiliasi pembayaran terjadwal
+  # ---------------------------------------------------------------------------
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
+    availability: [RUNTIME]

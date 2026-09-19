@@ -20,5 +20,18 @@
   "firestore": {
     "database": "default",
     "rules": "firestore.rules"
+  },
+  "apphosting": {
+    "backendId": "zavi-web",
+    "rootDir": "/",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "functions",
+      "catatan",
+      ".agents"
+    ]
   }
 }

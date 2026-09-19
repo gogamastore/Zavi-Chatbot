@@ -43,7 +43,23 @@ export const env = {
   // Set this when the project uses a *named* database instead (this project's
   // database is literally named "default", which is NOT the same as "(default)").
   firebaseDatabaseId: process.env.FIREBASE_DATABASE_ID ?? "",
+  /**
+   * Paksa memakai Application Default Credentials (tanpa key sama sekali).
+   * Berguna di lingkungan Google Cloud yang service account-nya sudah melekat.
+   */
+  firebaseUseAdc: (process.env.FIREBASE_USE_ADC ?? "").toLowerCase() === "true",
 };
+
+/**
+ * True saat berjalan di dalam Google Cloud Run / App Hosting.
+ *
+ * Cloud Run selalu menyetel K_SERVICE. Di lingkungan itu service account sudah
+ * melekat pada container, sehingga Firebase Admin bisa memakai Application
+ * Default Credentials tanpa satu pun key di env.
+ */
+function diCloudRun(): boolean {
+  return Boolean(process.env.K_SERVICE);
+}
 
 /** Penyedia AI yang benar-benar bisa dipakai saat ini. */
 export function resolveAIProvider(): "anthropic" | "gemini" | "none" {
@@ -81,8 +97,20 @@ export function hasWhatsApp(): boolean {
 /** True when Firestore credentials are present. */
 export function hasFirestore(): boolean {
   return Boolean(
+    // Kredensial inline (pengembangan lokal).
     (env.firebaseProjectId && env.firebaseClientEmail && env.firebasePrivateKey) ||
-      env.googleAppCredentials,
+      // Berkas service account lewat GOOGLE_APPLICATION_CREDENTIALS.
+      env.googleAppCredentials ||
+      // Application Default Credentials: otomatis di Cloud Run / App Hosting,
+      // atau dipaksa lewat FIREBASE_USE_ADC.
+      //
+      // Tanpa cabang ini, app yang di-deploy ke App Hosting akan DIAM-DIAM
+      // jatuh ke penyimpanan memori dan kehilangan seluruh data tiap restart —
+      // tanpa satu pun pesan error. Persis kelas kegagalan senyap yang paling
+      // mahal: semuanya tampak jalan sampai pelanggan bertanya ke mana
+      // pesanannya hilang.
+      env.firebaseUseAdc ||
+      diCloudRun(),
   );
 }
 
