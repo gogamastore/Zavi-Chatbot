@@ -30,5 +30,14 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    // Cloud Functions adalah paket terpisah: punya tsconfig, dependensi, dan
+    // perintah build sendiri. Dependensinya hanya ada di functions/node_modules,
+    // yang TIDAK dipasang di mesin build App Hosting — jadi kalau folder ini
+    // ikut di-type-check oleh proyek Next.js, build produksi gagal dengan
+    // "Cannot find module 'firebase-functions'". Lokal tidak ketahuan karena
+    // functions/node_modules ada di mesin pengembang.
+    "functions"
+  ]
 }
