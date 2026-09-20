@@ -163,7 +163,14 @@ yang bisa mengangkat dirinya sendiri lewat web.
 | Halaman | Isi |
 |---|---|
 | `/owner/login` | Login khusus pengelola. Tanpa daftar, tanpa login Google. |
-| `/owner` | Daftar semua klien: paket, status langganan, masa berlaku, pemakaian AI, saldo kredit, sambungan WhatsApp. |
+| `/owner` | Ringkasan: jumlah mitra, aktif, percobaan, terkunci, pemakaian AI, dan daftar "perlu perhatian". |
+| `/owner/mitra` | Daftar lengkap mitra + pencarian & filter status: paket, masa berlaku, pemakaian AI, saldo kredit, sambungan WhatsApp. |
+
+Akun owner berada **di luar sistem langganan**: semua fitur terbuka tanpa batas
+dan tanpa masa berlaku, dan `/api/payment/create` menolaknya karena tidak ada
+yang perlu dibeli. Ruang kerjanya (`Ruang Uji Owner`) dibuat otomatis saat
+pertama login dan ditandai `platformOwner`, jadi tidak ikut terhitung sebagai
+mitra. Pemakaian AI-nya tetap dihitung dan ditampilkan — biayanya nyata.
 
 Mengelola akun owner dari terminal:
 

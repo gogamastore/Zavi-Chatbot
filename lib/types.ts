@@ -130,6 +130,13 @@ export interface Tenant {
   /** Template bot yang dipilih saat onboarding. */
   templateId: BotTemplateId;
   /**
+   * Ruang kerja milik pengelola Zavi sendiri, bukan mitra pelanggan.
+   *
+   * Dipakai supaya akun owner yang sedang mencoba fitur tidak ikut terhitung
+   * sebagai klien di dasbor owner — angka "total mitra" harus jujur.
+   */
+  platformOwner?: boolean;
+  /**
    * phone_number_id dari Meta, milik nomor WhatsApp tenant ini. Dipakai webhook
    * untuk menentukan pesan masuk ini milik tenant yang mana, DAN sebagai nomor
    * pengirim balasan. Kosong = belum menghubungkan WhatsApp (simulator saja).
@@ -153,7 +160,13 @@ export interface Tenant {
 
 // --- Paket langganan -------------------------------------------------------
 
-export type PlanId = "trial" | "basic" | "pro";
+/**
+ * "owner" bukan paket yang dijual — itu penanda akun pengelola Zavi yang
+ * berada DI LUAR sistem langganan sama sekali. Sengaja dijadikan PlanId
+ * tersendiri, bukan dipinjamkan dari "pro", supaya akun internal tidak pernah
+ * terbaca sebagai pelanggan Pro yang membayar di laporan mana pun.
+ */
+export type PlanId = "trial" | "basic" | "pro" | "owner";
 
 /** Paket kredit AI tambahan (top-up), dibeli terpisah dari langganan. */
 export type CreditPackId = "kredit-250" | "kredit-1000" | "kredit-3000";
@@ -275,6 +288,11 @@ export interface Entitlement {
   aiRepliesRemaining: number;
   /** True kalau kuota paket DAN kredit sama-sama habis (fitur lain tetap jalan). */
   aiQuotaExceeded: boolean;
+  /**
+   * Akun di luar sistem langganan (owner/pengelola): tanpa batas kuota, tanpa
+   * masa berlaku, tanpa tagihan. UI menampilkan "Tanpa batas", bukan angka.
+   */
+  unlimited: boolean;
   /** Alasan singkat dalam Bahasa Indonesia untuk ditampilkan ke pengguna. */
   reason: string;
 }

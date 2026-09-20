@@ -28,9 +28,15 @@ export async function GET(request: Request) {
     for (const s of subs) perTenant.set(s.tenantId, s);
 
     const now = Date.now();
-    const baris = tenants
+    // Ruang kerja pengelola Zavi sendiri bukan mitra. Dipisahkan supaya angka
+    // "total mitra" tidak pernah menghitung akun internal.
+    const mitra = tenants.filter((t) => !t.platformOwner);
+    const ruangInternal = tenants.filter((t) => t.platformOwner).map((t) => t.id);
+
+    const baris = mitra
       .map((t) => {
         const sub = perTenant.get(t.id) ?? null;
+        const berlakuSampai = sub?.currentPeriodEnd ?? sub?.trialEndsAt ?? null;
         // Entitlement dihitung ulang, tidak dibaca dari database — supaya
         // yang owner lihat sama persis dengan yang dialami pelanggan.
         const ent = sub ? computeEntitlement(sub, now) : null;
@@ -47,7 +53,13 @@ export async function GET(request: Request) {
           planName: sub ? getPlan(sub.planId).name : null,
           status: ent?.status ?? null,
           locked: ent?.locked ?? null,
-          berlakuSampai: sub?.currentPeriodEnd ?? sub?.trialEndsAt ?? null,
+          berlakuSampai,
+          // "Segera habis" dihitung di SERVER supaya ada satu definisi saja,
+          // dan supaya halaman tidak perlu memanggil Date.now() saat render.
+          akanHabis:
+            ent?.locked === false &&
+            berlakuSampai !== null &&
+            berlakuSampai - now < 7 * 86_400_000,
           aiRepliesUsed: ent?.aiRepliesUsed ?? 0,
           aiRepliesLimit: ent?.aiRepliesLimit ?? 0,
           aiCreditsBalance: ent?.aiCreditsBalance ?? 0,
@@ -55,20 +67,23 @@ export async function GET(request: Request) {
       })
       .sort((a, b) => b.createdAt - a.createdAt);
 
-    // Langganan tanpa tenant (mis. tenant demo) tidak ditampilkan sebagai klien,
-    // tapi tetap dihitung supaya angka pemakaian AI platform tidak menyesatkan.
+    // Langganan tanpa tenant (mis. tenant demo) tidak ditampilkan sebagai mitra.
     const idTenant = new Set(tenants.map((t) => t.id));
     const yatim = subs.filter((s) => !idTenant.has(s.tenantId)).map((s) => s.tenantId);
+
+    const hitung = (f: (b: (typeof baris)[number]) => boolean) => baris.filter(f).length;
 
     return Response.json({
       tenants: baris,
       ringkasan: {
         total: baris.length,
-        aktif: baris.filter((b) => b.status === "active").length,
-        percobaan: baris.filter((b) => b.status === "trial").length,
-        terkunci: baris.filter((b) => b.locked === true).length,
+        aktif: hitung((b) => b.status === "active"),
+        percobaan: hitung((b) => b.status === "trial" || b.status === "pending"),
+        terkunci: hitung((b) => b.locked === true),
+        akanHabis7Hari: hitung((b) => b.akanHabis),
         totalPemakaianAI: baris.reduce((n, b) => n + b.aiRepliesUsed, 0),
       },
+      ruangInternal,
       langgananTanpaTenant: yatim,
     });
   } catch (err) {

@@ -27,6 +27,7 @@ import type {
 interface MeResponse {
   authenticated: boolean;
   demo?: boolean;
+  owner?: boolean;
   needsLogin?: boolean;
   needsRegistration?: boolean;
   tenant?: Tenant;
@@ -54,6 +55,8 @@ export interface UseSubscription {
   needsLogin: boolean;
   /** Berjalan tanpa login (demo lokal). */
   isDemo: boolean;
+  /** Akun pengelola Zavi: di luar sistem langganan, akses tanpa batas. */
+  isOwner: boolean;
 
   /** Semua fitur berbayar terkunci. */
   locked: boolean;
@@ -114,6 +117,7 @@ export function useSubscription(): UseSubscription {
     needsRegistration: Boolean(data?.needsRegistration),
     needsLogin: Boolean(data?.needsLogin),
     isDemo: Boolean(data?.demo),
+    isOwner: Boolean(data?.owner),
     locked: ent?.locked ?? false,
     trialDaysLeft: ent?.trialDaysLeft ?? 0,
     trialEndingSoon: ent?.trialEndingSoon ?? false,

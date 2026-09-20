@@ -6,7 +6,12 @@
 // needsRegistration:true supaya UI bisa mengarahkan ke onboarding.
 // ---------------------------------------------------------------------------
 import { getOptionalUser } from "@/lib/auth/server";
-import { computeEntitlement, newTrialSubscription } from "@/lib/billing/entitlement";
+import {
+  computeEntitlement,
+  newTrialSubscription,
+  ownerEntitlement,
+} from "@/lib/billing/entitlement";
+import { pastikanRuangKerjaOwner } from "@/lib/tenant/provision";
 import { PURCHASABLE_PLANS, TRIAL_DAYS, getPlan } from "@/lib/billing/plans";
 import { hasFirestore } from "@/lib/config";
 import { getPlatformStore } from "@/lib/db/store";
@@ -53,7 +58,13 @@ export async function GET(request: Request) {
   }
 
   const platform = getPlatformStore();
-  const tenant = await platform.getTenantByUid(user.uid);
+
+  // Owner tidak pernah diminta onboarding: ruang kerjanya dibuatkan otomatis
+  // sekali, supaya seluruh fitur bisa langsung dipakai menguji produk.
+  const tenant = user.owner
+    ? await pastikanRuangKerjaOwner(user)
+    : await platform.getTenantByUid(user.uid);
+
   if (!tenant) {
     // Sudah login, tapi belum menyelesaikan onboarding.
     return Response.json({
@@ -70,12 +81,13 @@ export async function GET(request: Request) {
   return Response.json({
     authenticated: true,
     demo: false,
+    owner: user.owner === true,
     needsRegistration: false,
     user,
     tenant,
     subscription: sub,
-    entitlement: computeEntitlement(sub),
-    plan: getPlan(sub.planId),
+    entitlement: user.owner ? ownerEntitlement(sub) : computeEntitlement(sub),
+    plan: getPlan(user.owner ? "owner" : sub.planId),
     ...paket,
   });
 }

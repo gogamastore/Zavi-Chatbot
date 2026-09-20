@@ -80,10 +80,22 @@ export interface HasilPendaftaran {
   baru: boolean;
 }
 
+export interface OpsiPenyediaan {
+  /**
+   * Tandai sebagai ruang kerja pengelola Zavi, bukan mitra pelanggan.
+   *
+   * Sengaja parameter tersendiri, bukan bagian dari PendaftaranInput: input itu
+   * dirakit dari body request, dan penanda ini tidak boleh pernah bisa datang
+   * dari sana.
+   */
+  platformOwner?: boolean;
+}
+
 /** Buat tenant lengkap untuk pengguna yang baru mendaftar. */
 export async function provisionTenant(
   user: AuthUser,
   input: PendaftaranInput,
+  opsi: OpsiPenyediaan = {},
 ): Promise<HasilPendaftaran> {
   const platform = getPlatformStore();
 
@@ -102,12 +114,28 @@ export async function provisionTenant(
     ownerEmail: user.email,
     businessName: nama,
     templateId: input.templateId,
+    ...(opsi.platformOwner ? { platformOwner: true } : {}),
     createdAt: now,
     updatedAt: now,
   };
 
   await platform.createTenant(tenant);
-  await platform.saveSubscription(newTrialSubscription(tenantId, now));
+
+  const langganan = newTrialSubscription(tenantId, now);
+  await platform.saveSubscription(
+    opsi.platformOwner
+      ? {
+          // Ruang kerja owner tidak pernah jatuh tempo. Hak aksesnya tetap
+          // ditentukan ownerEntitlement(), tapi data tersimpannya pun dibuat
+          // masuk akal supaya tidak ada laporan yang membacanya sebagai
+          // "trial yang sudah lewat".
+          ...langganan,
+          status: "active",
+          planId: "owner",
+          currentPeriodEnd: now + 100 * 365 * 86_400_000,
+        }
+      : langganan,
+  );
 
   const store = getStore(tenantId);
   await Promise.all([
@@ -117,4 +145,25 @@ export async function provisionTenant(
   ]);
 
   return { tenant, baru: true };
+}
+
+/**
+ * Pastikan akun owner punya ruang kerja sendiri untuk mencoba semua fitur.
+ *
+ * Owner tidak melewati onboarding seperti pelanggan — begitu login, ruang
+ * kerjanya dibuatkan sekali dengan isi contoh, supaya simulator, chat,
+ * pesanan, katalog, dan pengaturan bisa langsung dipakai menguji produk.
+ * Idempoten: pemanggilan berikutnya mengembalikan yang sudah ada.
+ */
+export async function pastikanRuangKerjaOwner(user: AuthUser): Promise<Tenant> {
+  const { tenant } = await provisionTenant(
+    user,
+    {
+      businessName: "Ruang Uji Owner",
+      businessType: "Internal Zavi",
+      templateId: "resto",
+    },
+    { platformOwner: true },
+  );
+  return tenant;
 }

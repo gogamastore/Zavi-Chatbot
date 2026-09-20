@@ -23,12 +23,15 @@ const NAV_PENGATURAN = [
 
 const NAV_AKUN = [{ href: "/langganan", label: "Langganan", icon: "💳" }];
 
+/** Owner tidak berlangganan, jadi menunya berbeda: pintu ke area pengelola. */
+const NAV_OWNER = [{ href: "/owner", label: "Area Owner", icon: "🛡️" }];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const { user, authEnabled, logout } = useAuth();
-  const { tenant, entitlement, isDemo } = useSubscription();
+  const { tenant, entitlement, isDemo, isOwner } = useSubscription();
 
   // Halaman auth tampil penuh tanpa sidebar. Area owner juga: menu di sini
   // seluruhnya milik satu tenant, sedangkan owner tidak punya tenant.
@@ -80,8 +83,8 @@ export default function Sidebar() {
             <NavLink key={item.href} {...item} active={isActive(item.href)} onGo={() => setOpen(false)} />
           ))}
 
-          <Divider>Akun</Divider>
-          {NAV_AKUN.map((item) => (
+          <Divider>{isOwner ? "Pengelola" : "Akun"}</Divider>
+          {(isOwner ? NAV_OWNER : NAV_AKUN).map((item) => (
             <NavLink key={item.href} {...item} active={isActive(item.href)} onGo={() => setOpen(false)} />
           ))}
         </nav>
@@ -91,7 +94,10 @@ export default function Sidebar() {
             <div className="text-white/60 px-2 py-1">Mode demo (tanpa login)</div>
           ) : user ? (
             <div className="px-2 py-1">
-              <div className="font-medium truncate">{tenant?.businessName ?? "Bisnis saya"}</div>
+              <div className="font-medium truncate">
+                {tenant?.businessName ?? "Bisnis saya"}
+                {isOwner && <span className="badge src-rule ml-1.5">owner</span>}
+              </div>
               <div className="text-white/50 truncate">{user.email}</div>
               {entitlement && (
                 <div className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-white/70">
@@ -123,6 +129,7 @@ function labelStatus(s: string): string {
   return (
     {
       trial: "Masa percobaan",
+      owner: "Akses penuh",
       trial_ended: "Percobaan habis",
       pending: "Menunggu pembayaran",
       active: "Langganan aktif",

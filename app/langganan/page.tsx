@@ -39,7 +39,7 @@ const SNAP_SRC = PRODUKSI
   : "https://app.sandbox.midtrans.com/snap/snap.js";
 
 export default function LanggananPage() {
-  const { loading, entitlement, subscription, plan, plans, isDemo, refresh } =
+  const { loading, entitlement, subscription, plan, plans, isDemo, isOwner, refresh } =
     useSubscription();
   // Satu penanda "sedang diproses" untuk paket maupun kredit — id-nya cukup
   // untuk tahu tombol mana yang harus berubah jadi "Memproses…".
@@ -191,10 +191,17 @@ export default function LanggananPage() {
 
             {entitlement && (
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-5 pt-5 border-t border-[var(--border)]">
-                <Info label="Sisa percobaan" nilai={`${entitlement.trialDaysLeft} hari`} />
+                <Info
+                  label="Sisa percobaan"
+                  nilai={entitlement.unlimited ? "—" : `${entitlement.trialDaysLeft} hari`}
+                />
                 <Info
                   label="Pemakaian AI bulan ini"
-                  nilai={`${entitlement.aiRepliesUsed} / ${entitlement.aiRepliesLimit}`}
+                  nilai={
+                    entitlement.unlimited
+                      ? `${entitlement.aiRepliesUsed.toLocaleString("id-ID")} · tanpa batas`
+                      : `${entitlement.aiRepliesUsed} / ${entitlement.aiRepliesLimit}`
+                  }
                 />
                 <Info
                   label="Kredit tambahan"
@@ -212,17 +219,31 @@ export default function LanggananPage() {
                 <Info
                   label="Berlaku sampai"
                   nilai={
-                    subscription?.currentPeriodEnd
-                      ? formatDateTime(subscription.currentPeriodEnd)
-                      : subscription?.trialEndsAt
-                        ? formatDateTime(subscription.trialEndsAt)
-                        : "—"
+                    entitlement.unlimited
+                      ? "Tanpa batas waktu"
+                      : subscription?.currentPeriodEnd
+                        ? formatDateTime(subscription.currentPeriodEnd)
+                        : subscription?.trialEndsAt
+                          ? formatDateTime(subscription.trialEndsAt)
+                          : "—"
                   }
                 />
               </div>
             )}
           </section>
 
+          {isOwner ? (
+            <div className="card p-5 text-sm">
+              <div className="font-semibold mb-1">Akun owner — di luar sistem langganan</div>
+              <p className="text-[var(--muted)]">
+                Tidak ada paket, tagihan, maupun masa berlaku untuk akun ini.
+                Semua fitur terbuka tanpa batas supaya Anda bisa menguji seluruh
+                aplikasi. Pemakaian AI tetap dihitung di atas karena biayanya
+                nyata — tapi tidak pernah mengunci apa pun.
+              </p>
+            </div>
+          ) : (
+          <>
           <h2 className="font-semibold text-lg mb-3">Pilih paket</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             {plans.map((p) => (
@@ -299,6 +320,8 @@ export default function LanggananPage() {
             Fitur dan kredit masuk otomatis begitu pembayaran dikonfirmasi — tidak
             perlu menunggu admin.
           </p>
+          </>
+          )}
         </>
       )}
     </div>

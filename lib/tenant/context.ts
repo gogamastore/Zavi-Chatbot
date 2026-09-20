@@ -8,7 +8,12 @@
 // tenantId SELALU diturunkan dari ID token, tidak pernah dari body/query.
 // ---------------------------------------------------------------------------
 import { AuthError, requireUser, type AuthUser } from "@/lib/auth/server";
-import { computeEntitlement, newTrialSubscription } from "@/lib/billing/entitlement";
+import {
+  computeEntitlement,
+  newTrialSubscription,
+  ownerEntitlement,
+} from "@/lib/billing/entitlement";
+import { pastikanRuangKerjaOwner } from "@/lib/tenant/provision";
 import { hasFirestore } from "@/lib/config";
 import {
   DEMO_TENANT_ID,
@@ -94,7 +99,12 @@ export async function getTenantContext(request: Request): Promise<TenantContext>
   const user = await requireUser(request);
   const platform = getPlatformStore();
 
-  const tenant = await platform.getTenantByUid(user.uid);
+  // Owner tidak melewati onboarding pelanggan: ruang kerjanya dibuatkan sekali
+  // saat pertama dipakai, supaya semua fitur bisa langsung dicoba.
+  const tenant = user.owner
+    ? await pastikanRuangKerjaOwner(user)
+    : await platform.getTenantByUid(user.uid);
+
   if (!tenant) {
     throw new AuthError(
       "Akun ini belum punya bisnis terdaftar. Selesaikan pendaftaran dulu.",
@@ -112,7 +122,9 @@ export async function getTenantContext(request: Request): Promise<TenantContext>
     user,
     tenant,
     subscription: sub,
-    entitlement: computeEntitlement(sub),
+    // Owner tidak pernah terkunci dan tidak pernah kehabisan kuota — kalau
+    // tidak, pengelola bisa terhalang menguji produknya sendiri.
+    entitlement: user.owner ? ownerEntitlement(sub) : computeEntitlement(sub),
     store: getStore(tenant.id),
     isDemo: false,
   };

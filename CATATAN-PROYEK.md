@@ -139,16 +139,30 @@ Zavi sekarang punya konsep pengelola platform, terpisah dari pelanggan.
   ada login Google. Setelah login, akses diperiksa ke **server**
   (`/api/owner/me`), bukan dengan membaca claim di browser; kalau ternyata bukan
   owner, sesinya langsung ditutup lagi.
-- **`/owner`** — dasbor: daftar seluruh klien, paket, status langganan
-  (dihitung ulang dengan `computeEntitlement`, jadi sama persis dengan yang
-  dialami pelanggan), masa berlaku, pemakaian AI, saldo kredit, dan status
-  sambungan WhatsApp. Masih **baca-saja**.
+- **`/owner`** — ringkasan: jumlah mitra, aktif, percobaan, terkunci, total
+  pemakaian AI, dan daftar **"perlu perhatian"** (mitra terkunci atau tinggal
+  < 7 hari).
+- **`/owner/mitra`** — daftar lengkap mitra dengan pencarian (nama bisnis,
+  email, nomor) dan penyaringan status: paket, status langganan, masa berlaku,
+  pemakaian AI, saldo kredit, sambungan WhatsApp, tanggal bergabung. Status
+  dihitung ulang dengan `computeEntitlement`, jadi sama persis dengan yang
+  dialami pelanggan. Masih **baca-saja**.
+- **Owner punya akses penuh tanpa batas ke seluruh aplikasi.** `ownerEntitlement()`
+  membuka semua fitur, tidak pernah terkunci, tidak pernah kehabisan kuota, dan
+  tidak punya masa berlaku — pengelola harus bisa mencoba setiap fitur kapan
+  saja untuk menguji produknya sendiri. Pemakaian AI tetap **dihitung dan
+  ditampilkan** apa adanya, karena biayanya nyata.
+- **Owner berada di luar sistem langganan.** Paketnya `owner` (PlanId
+  tersendiri, bukan meminjam "pro", supaya akun internal tidak pernah terbaca
+  sebagai pelanggan Pro yang membayar). `/api/payment/create` menolak akun
+  owner — tidak ada yang perlu dibeli. Di sidebar, menu "Langganan" diganti
+  "Area Owner".
+- **Ruang kerja owner dibuat otomatis** saat pertama login (`Ruang Uji Owner`,
+  isi contoh) dan ditandai `platformOwner: true`, sehingga **tidak ikut
+  terhitung sebagai mitra** di dasbor. Angka "total mitra" harus jujur.
 - **`requireOwner()`** di `lib/auth/owner.ts` adalah penegakannya. Berbeda dari
   `requireUser()`, token diperiksa terhadap daftar pencabutan (`checkRevoked`),
   sehingga "keluarkan semua sesi" berlaku seketika, bukan menunggu satu jam.
-- **Akun owner tidak bisa jadi pelanggan** — `/api/register` menolaknya (403).
-  Tanpa itu, membuka halaman utama dengan akun owner akan mengarahkannya ke
-  onboarding dan diam-diam membuatkannya tenant sendiri.
 - **`scripts/owner.mjs`** mengelola claim dari terminal:
 
   ```bash

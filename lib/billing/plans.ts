@@ -17,6 +17,14 @@ export const TRIAL_DAYS = 3;
  */
 export const GRACE_DAYS = 3;
 
+/**
+ * Kuota AI untuk akun owner. Besar tapi tetap berhingga — Infinity berubah
+ * jadi null saat dikirim sebagai JSON dan akan tampil "0" di UI. UI memakai
+ * flag `unlimited` pada Entitlement, bukan angka ini, untuk menulis
+ * "Tanpa batas".
+ */
+export const KUOTA_AI_OWNER = 1_000_000;
+
 export const PLANS: Record<PlanId, Plan> = {
   trial: {
     id: "trial",
@@ -71,9 +79,24 @@ export const PLANS: Record<PlanId, Plan> = {
       "Ekspor data chat & pesanan",
     ],
   },
+  /**
+   * Bukan paket jualan. Ini penanda akun pengelola Zavi yang berada di LUAR
+   * sistem langganan: tidak pernah jatuh tempo, tidak pernah ditagih, tidak
+   * pernah kehabisan kuota. Tidak boleh masuk PURCHASABLE_PLANS.
+   */
+  owner: {
+    id: "owner",
+    name: "Owner",
+    priceIdr: 0,
+    aiRepliesPerMonth: KUOTA_AI_OWNER,
+    maxKnowledgeDocs: Number.MAX_SAFE_INTEGER,
+    maxWhatsappNumbers: Number.MAX_SAFE_INTEGER,
+    features: [...ALL_FEATURES],
+    highlights: ["Akses penuh tanpa batas", "Akun pengelola, bukan pelanggan"],
+  },
 };
 
-/** Paket yang bisa dibeli (trial tidak dijual). */
+/** Paket yang bisa dibeli (trial & owner tidak dijual). */
 export const PURCHASABLE_PLANS: Plan[] = [PLANS.basic, PLANS.pro];
 
 export function getPlan(id: PlanId): Plan {

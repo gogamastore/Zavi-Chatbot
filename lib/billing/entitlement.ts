@@ -19,6 +19,7 @@ import { ALL_FEATURES } from "@/lib/types";
 import {
   FEATURES_LOCKED_WHEN_UNPAID,
   GRACE_DAYS,
+  KUOTA_AI_OWNER,
   TRIAL_DAYS,
   getPlan,
 } from "./plans";
@@ -144,6 +145,7 @@ export function computeEntitlement(sub: Subscription, now = Date.now()): Entitle
     aiCreditsBalance,
     aiRepliesRemaining,
     aiQuotaExceeded,
+    unlimited: false,
     reason: alasan(status, trialDaysLeft),
   };
 }
@@ -151,6 +153,38 @@ export function computeEntitlement(sub: Subscription, now = Date.now()): Entitle
 /** Pintasan untuk penjagaan di API route. */
 export function canUse(ent: Entitlement, feature: FeatureKey): boolean {
   return ent.features[feature] === true;
+}
+
+/**
+ * Hak akses untuk akun pengelola Zavi (custom claim `owner`).
+ *
+ * Owner berada DI LUAR sistem langganan: tidak pernah terkunci, tidak punya
+ * masa berlaku, tidak pernah kehabisan kuota, dan tidak pernah ditagih. Dia
+ * harus bisa mencoba setiap fitur kapan saja untuk menguji produknya sendiri.
+ *
+ * Pemakaian AI tetap DIHITUNG dan ditampilkan apa adanya — biayanya nyata,
+ * jadi angkanya tidak disembunyikan hanya karena tidak dibatasi.
+ */
+export function ownerEntitlement(sub: Subscription | null): Entitlement {
+  const features = {} as Record<FeatureKey, boolean>;
+  for (const f of ALL_FEATURES) features[f] = true;
+
+  const aiRepliesUsed = sub?.aiRepliesUsed ?? 0;
+  return {
+    status: "active",
+    planId: "owner",
+    locked: false,
+    trialDaysLeft: 0,
+    trialEndingSoon: false,
+    features,
+    aiRepliesUsed,
+    aiRepliesLimit: KUOTA_AI_OWNER,
+    aiCreditsBalance: Math.max(0, sub?.aiCreditsBalance ?? 0),
+    aiRepliesRemaining: Math.max(0, KUOTA_AI_OWNER - aiRepliesUsed),
+    aiQuotaExceeded: false,
+    unlimited: true,
+    reason: "Akun owner — di luar sistem langganan, semua fitur terbuka tanpa batas.",
+  };
 }
 
 /** Entitlement untuk tenant yang belum punya langganan sama sekali. */
@@ -169,6 +203,7 @@ export function lockedEntitlement(reason = "Akun belum aktif."): Entitlement {
     aiCreditsBalance: 0,
     aiRepliesRemaining: 0,
     aiQuotaExceeded: true,
+    unlimited: false,
     reason,
   };
 }

@@ -60,6 +60,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Owner berada di luar sistem langganan — tidak ada yang perlu dibeli.
+    // Membiarkannya membayar berarti menagih diri sendiri lewat Midtrans.
+    if (ctx.user?.owner) {
+      return Response.json(
+        { error: "Akun owner tidak berlangganan — semua fitur sudah terbuka tanpa batas." },
+        { status: 403 },
+      );
+    }
+
     // Kredit menambah kuota, bukan membuka kunci. Menjual kredit ke akun yang
     // terkunci sama dengan menerima uang untuk sesuatu yang tidak bisa dipakai
     // — tolak di sini, arahkan ke langganan dulu.
