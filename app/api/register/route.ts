@@ -14,6 +14,19 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser(request);
 
+    // Akun owner adalah akun pengelola platform, bukan calon pelanggan.
+    // Tanpa penjagaan ini, membuka halaman utama dengan akun owner akan
+    // mengarahkannya ke onboarding dan diam-diam membuatkannya tenant sendiri.
+    if (user.owner) {
+      return Response.json(
+        {
+          error:
+            "Akun owner tidak bisa mendaftar sebagai pelanggan. Pakai akun lain untuk mencoba sebagai klien.",
+        },
+        { status: 403 },
+      );
+    }
+
     let body: Record<string, string | undefined>;
     try {
       body = await request.json();

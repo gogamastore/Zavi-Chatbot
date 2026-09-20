@@ -97,8 +97,15 @@ export interface PlatformStore {
   getTenantByPhoneNumberId(phoneNumberId: string): Promise<Tenant | null>;
   createTenant(tenant: Tenant): Promise<Tenant>;
   updateTenant(tenantId: string, patch: Partial<Tenant>): Promise<Tenant | null>;
+  /**
+   * Semua tenant — HANYA untuk area owner. Jangan dipakai di API pelanggan:
+   * satu pemanggilan yang salah tempat membocorkan daftar klien.
+   */
+  listTenants(limit?: number): Promise<Tenant[]>;
 
   getSubscription(tenantId: string): Promise<Subscription | null>;
+  /** Semua langganan. Sama seperti listTenants: khusus area owner. */
+  listSubscriptions(limit?: number): Promise<Subscription[]>;
   saveSubscription(sub: Subscription): Promise<Subscription>;
   /**
    * Catat pemakaian AI: ambil dari kuota bulanan paket dulu, baru dari kredit
@@ -366,8 +373,14 @@ class MemoryPlatformStore implements PlatformStore {
     root.tenantMeta.set(tenantId, next);
     return next;
   }
+  async listTenants(limit = 500) {
+    return [...memoryRoot().tenantMeta.values()].slice(0, limit);
+  }
   async getSubscription(tenantId: string) {
     return memoryRoot().subscriptions.get(tenantId) ?? null;
+  }
+  async listSubscriptions(limit = 500) {
+    return [...memoryRoot().subscriptions.values()].slice(0, limit);
   }
   async saveSubscription(sub: Subscription) {
     memoryRoot().subscriptions.set(sub.tenantId, sub);
@@ -566,9 +579,17 @@ class FirestorePlatformStore implements PlatformStore {
     await ref.set(next);
     return next;
   }
+  async listTenants(limit = 500) {
+    const snap = await (await db()).collection("tenants").limit(limit).get();
+    return snap.docs.map((d) => d.data() as Tenant);
+  }
   async getSubscription(tenantId: string) {
     const snap = await (await db()).collection("subscriptions").doc(tenantId).get();
     return snap.exists ? (snap.data() as Subscription) : null;
+  }
+  async listSubscriptions(limit = 500) {
+    const snap = await (await db()).collection("subscriptions").limit(limit).get();
+    return snap.docs.map((d) => d.data() as Subscription);
   }
   async saveSubscription(sub: Subscription) {
     await (await db()).collection("subscriptions").doc(sub.tenantId).set(stripUndefined(sub));

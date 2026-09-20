@@ -16,6 +16,11 @@ export interface AuthUser {
   uid: string;
   email: string;
   name?: string;
+  /**
+   * Pemegang custom claim `owner`. Akun pengelola platform, bukan pelanggan.
+   * Diambil dari token yang sudah diverifikasi, jadi tidak bisa dipalsukan.
+   */
+  owner?: boolean;
 }
 
 /** Dilempar saat request tidak terautentikasi atau tidak berhak. */
@@ -56,7 +61,12 @@ export async function requireUser(request: Request): Promise<AuthUser> {
     const decoded = await getAuth(getAdminApp()).verifyIdToken(token);
     const email = decoded.email ?? "";
     if (!email) throw new AuthError("Akun tanpa email tidak didukung.", 403);
-    return { uid: decoded.uid, email, name: decoded.name as string | undefined };
+    return {
+      uid: decoded.uid,
+      email,
+      name: decoded.name as string | undefined,
+      owner: decoded.owner === true,
+    };
   } catch (err) {
     if (err instanceof AuthError) throw err;
     // Token kedaluwarsa / rusak / ditandatangani project lain.

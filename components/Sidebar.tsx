@@ -30,8 +30,10 @@ export default function Sidebar() {
   const { user, authEnabled, logout } = useAuth();
   const { tenant, entitlement, isDemo } = useSubscription();
 
-  // Halaman auth tampil penuh tanpa sidebar.
+  // Halaman auth tampil penuh tanpa sidebar. Area owner juga: menu di sini
+  // seluruhnya milik satu tenant, sedangkan owner tidak punya tenant.
   if (pathname === "/login" || pathname === "/daftar") return null;
+  if (pathname === "/owner" || pathname.startsWith("/owner/")) return null;
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);

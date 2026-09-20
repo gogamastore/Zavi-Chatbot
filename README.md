@@ -154,6 +154,38 @@ Lihat definisi lengkap di [`lib/types.ts`](./lib/types.ts).
 
 ---
 
+## 🔐 Area owner / pengembang
+
+Terpisah dari akun pelanggan. Penandanya **custom claim Firebase Auth**
+(`owner: true`) yang hanya bisa diberikan lewat Admin SDK — tidak ada pengguna
+yang bisa mengangkat dirinya sendiri lewat web.
+
+| Halaman | Isi |
+|---|---|
+| `/owner/login` | Login khusus pengelola. Tanpa daftar, tanpa login Google. |
+| `/owner` | Daftar semua klien: paket, status langganan, masa berlaku, pemakaian AI, saldo kredit, sambungan WhatsApp. |
+
+Mengelola akun owner dari terminal:
+
+```bash
+node --env-file=.env.local scripts/owner.mjs daftar          # lihat semua owner
+node --env-file=.env.local scripts/owner.mjs buat  <email>   # buat akun (sandi dari stdin)
+node --env-file=.env.local scripts/owner.mjs beri  <email>   # jadikan owner
+node --env-file=.env.local scripts/owner.mjs cabut <email>   # cabut akses owner
+```
+
+Kata sandi dibaca dari stdin, bukan argumen — argumen tersimpan di riwayat
+shell dan terlihat di daftar proses:
+
+```bash
+printf '%s' 'sandi-rahasia' | node --env-file=.env.local scripts/owner.mjs buat owner@contoh.com
+```
+
+`beri` dan `cabut` sekaligus mencabut sesi lama, jadi perubahan izin langsung
+berlaku tanpa menunggu token kedaluwarsa.
+
+---
+
 ## 🚢 Deploy (Tahap 6)
 
 ### Docker / VPS

@@ -127,21 +127,45 @@ galeri template bot berwarna. Pipeline CRM ditunda atas permintaan pemilik —
 hanya relevan kalau mitra berjualan lewat META, sedangkan penjualan lewat
 aplikasi/website sendiri tidak akan terbaca.
 
-### 🔜 Diputuskan, dikerjakan nanti
+### ✅ Peran owner / pengembang (sesi 9)
 
-**Peran owner + menu khusus owner.** Saat ini Zavi sama sekali tidak punya
-konsep admin platform: tiap akun otomatis jadi pemilik tenant-nya sendiri,
-tidak lebih. Pemilik Zavi belum punya pintu masuk untuk melihat semua klien,
-memantau siapa yang akan habis masa langganannya, atau memperpanjang manual
-saat pembayaran bermasalah — semuanya masih lewat Firestore Console.
+Zavi sekarang punya konsep pengelola platform, terpisah dari pelanggan.
 
-Rencana saat dikerjakan:
-- Penanda admin lewat **custom claim Firebase Auth** (`admin: true`), bukan
-  field `role` di dokumen. Claim hanya bisa diberikan lewat Admin SDK,
-  sehingga pengguna tidak mungkin memberikannya ke dirinya sendiri.
-- Halaman `/admin` yang hanya terbuka untuk pemegang claim itu: daftar tenant,
-  status langganan, pemakaian AI lintas klien (ini biaya platform), dan
-  tombol perpanjang manual.
+- **Penanda owner = custom claim Firebase Auth `owner: true`**, bukan field
+  `role` di Firestore dan bukan daftar email di env. Claim hanya bisa diberikan
+  lewat Admin SDK, jadi tidak ada pengguna yang bisa mengangkat dirinya sendiri.
+  Claim ditandatangani Google di dalam token — tidak bisa dipalsukan dari klien.
+- **`/owner/login`** — halaman login terpisah. Tidak ada tautan daftar, tidak
+  ada login Google. Setelah login, akses diperiksa ke **server**
+  (`/api/owner/me`), bukan dengan membaca claim di browser; kalau ternyata bukan
+  owner, sesinya langsung ditutup lagi.
+- **`/owner`** — dasbor: daftar seluruh klien, paket, status langganan
+  (dihitung ulang dengan `computeEntitlement`, jadi sama persis dengan yang
+  dialami pelanggan), masa berlaku, pemakaian AI, saldo kredit, dan status
+  sambungan WhatsApp. Masih **baca-saja**.
+- **`requireOwner()`** di `lib/auth/owner.ts` adalah penegakannya. Berbeda dari
+  `requireUser()`, token diperiksa terhadap daftar pencabutan (`checkRevoked`),
+  sehingga "keluarkan semua sesi" berlaku seketika, bukan menunggu satu jam.
+- **Akun owner tidak bisa jadi pelanggan** — `/api/register` menolaknya (403).
+  Tanpa itu, membuka halaman utama dengan akun owner akan mengarahkannya ke
+  onboarding dan diam-diam membuatkannya tenant sendiri.
+- **`scripts/owner.mjs`** mengelola claim dari terminal:
+
+  ```bash
+  node --env-file=.env.local scripts/owner.mjs daftar
+  node --env-file=.env.local scripts/owner.mjs beri  <email>
+  node --env-file=.env.local scripts/owner.mjs cabut <email>
+  node --env-file=.env.local scripts/owner.mjs buat  <email>   # sandi dari stdin
+  ```
+
+  Sandi dibaca dari **stdin**, bukan argumen — argumen tersimpan di riwayat
+  shell dan terlihat di daftar proses. `beri` dan `cabut` juga mencabut sesi
+  lama, supaya perubahan izin langsung berlaku.
+
+Belum dikerjakan di area owner: perpanjangan langganan manual, pemberian kredit
+manual, dan ringkasan pendapatan. Pendapatan sengaja belum ditampilkan karena
+angkanya harus diambil dari Midtrans — angka yang dihitung ulang sendiri akan
+menyesatkan.
 
 ### ⏳ Belum / langkah berikutnya
 1. **Daftarkan Payment Notification URL** di Midtrans Dashboard →

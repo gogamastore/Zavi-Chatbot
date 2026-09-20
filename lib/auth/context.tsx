@@ -66,6 +66,25 @@ export async function getFreshIdToken(): Promise<string | null> {
   }
 }
 
+/**
+ * Paksa token dicetak ulang dari server.
+ *
+ * Custom claim (mis. `owner`) hanya ikut saat token dibuat. Tanpa pemaksaan
+ * ini, akun yang baru diberi claim harus menunggu sampai satu jam sebelum
+ * aksesnya diakui — dan akan terlihat seperti "izin tidak berfungsi".
+ */
+export async function paksaTokenBaru(): Promise<string | null> {
+  const u = getFirebaseAuth()?.currentUser;
+  if (!u) return null;
+  try {
+    const t = await u.getIdToken(true);
+    tokenTerakhir = t;
+    return t;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const authEnabled = hasAuthConfig();
   const [user, setUser] = useState<User | null>(null);
