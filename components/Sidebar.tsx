@@ -168,15 +168,19 @@ function Divider({ children }: { children: string }) {
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span
-        className="grid place-items-center w-9 h-9 rounded-xl text-lg font-bold"
-        style={{ background: "var(--wa-green)", color: "#053d36" }}
-      >
-        Z
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo.svg"
+        alt="Zavi"
+        width={36}
+        height={36}
+        className="w-9 h-9 rounded-xl shrink-0"
+      />
       <div className="leading-tight">
         <div className="font-bold">Zavi</div>
-        {!compact && <div className="text-[11px] text-white/60">WA Assistant</div>}
+        {!compact && (
+          <div className="text-[11px] text-white/60">Assistant</div>
+        )}
       </div>
     </div>
   );

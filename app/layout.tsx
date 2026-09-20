@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
@@ -8,9 +8,13 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Zavi — WA Assistant",
+  title: "Zavi Assistant — Chatbot WhatsApp",
   description:
     "Chatbot WhatsApp otomatis untuk UMKM: balas chat 24 jam, jawaban AI, dan pencatatan pesanan.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#075e54",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
