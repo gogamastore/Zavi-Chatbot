@@ -121,11 +121,30 @@ dikerjakan berurutan dari yang paling cepat menghasilkan:
      kredit **tidak** memperpanjang masa aktif dan **tidak** me-reset
      pemakaian — hanya menambah saldo, lewat increment atomik.
 
-Sisa daftar Kommo yang belum dikerjakan: tab "Sumber" & "Tindakan" terstruktur,
-katalog dari URL website, Embedded Signup (menunggu verifikasi bisnis Meta),
-galeri template bot berwarna. Pipeline CRM ditunda atas permintaan pemilik —
-hanya relevan kalau mitra berjualan lewat META, sedangkan penjualan lewat
-aplikasi/website sendiri tidak akan terbaca.
+Sisa urutan yang disepakati (dikerjakan dari atas):
+
+3. **Tab "Sumber" & "Tindakan" terstruktur** — mengubah satu kotak teks
+   (`customInstructions`) jadi aturan yang bisa ditambah satu per satu, dan
+   membuat URL di knowledge base benar-benar diambil isinya (sekarang hanya
+   disimpan).
+4. **Katalog dari URL situs** — ini yang paling banyak cara gagalnya: situs
+   ber-JavaScript, katalog yang sebenarnya ada di Instagram atau marketplace,
+   dan biaya AI setiap kali memindai. Butuh diskusi desain tersendiri sebelum
+   dikerjakan.
+5. **Embedded Signup + "Hubungkan WhatsApp lewat login Facebook"** — persis
+   seperti Kommo: mitra menekan satu tombol, login dengan akun Facebook
+   mereka, lalu nomor WhatsApp-nya tersambung ke **App ID Meta milik Zavi**
+   (model Tech Provider). Mitra tidak perlu membuat app Meta sendiri, tidak
+   perlu menyalin token, dan tidak perlu mengisi `phone_number_id` manual —
+   semuanya lewat dialog Facebook Login for Business. Bisa **dibangun
+   sekarang**, tapi baru **hidup setelah verifikasi bisnis Meta selesai**.
+   Ini yang akhirnya menggantikan halaman /settings/whatsapp yang sekarang
+   masih minta isian manual.
+6. **Galeri template bot berwarna** — kosmetik, paling akhir.
+
+Pipeline CRM ditunda atas permintaan pemilik — hanya relevan kalau mitra
+berjualan lewat META, sedangkan penjualan lewat aplikasi/website sendiri tidak
+akan terbaca.
 
 ### ✅ Peran owner / pengembang (sesi 9)
 
