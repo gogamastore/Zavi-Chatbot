@@ -2,7 +2,7 @@
 // GET/PUT /api/ai-config → pengaturan AI milik tenant (halaman Pengaturan AI).
 // ---------------------------------------------------------------------------
 import { kesehatanAI, saranPerbaikan } from "@/lib/bot/ai-health";
-import type { AIConfig, AIProvider } from "@/lib/types";
+import type { AIAction, AIConfig, AIProvider } from "@/lib/types";
 import { contextErrorResponse, getTenantContext } from "@/lib/tenant/context";
 
 export const runtime = "nodejs";
@@ -46,6 +46,43 @@ export async function GET(request: Request) {
   }
 }
 
+/** Batas tindakan per tenant — menahan prompt (dan biayanya) tetap masuk akal. */
+export const MAKS_TINDAKAN = 30;
+const MAKS_PANJANG_TINDAKAN = 300;
+
+/**
+ * Bersihkan daftar tindakan dari klien.
+ *
+ * Isi tindakan masuk langsung ke system prompt AI, jadi panjangnya dibatasi
+ * dan barisnya dipangkas: satu tenant tidak boleh bisa membengkakkan biaya
+ * token (yang ditanggung platform) hanya dengan menempel novel ke satu kolom.
+ */
+function bersihkanTindakan(masuk: unknown): AIAction[] {
+  if (!Array.isArray(masuk)) return [];
+  const hasil: AIAction[] = [];
+  for (const m of masuk.slice(0, MAKS_TINDAKAN)) {
+    if (!m || typeof m !== "object") continue;
+    const a = m as Partial<AIAction>;
+    const when = String(a.when ?? "").trim().replace(/\s+/g, " ").slice(0, MAKS_PANJANG_TINDAKAN);
+    const then = String(a.then ?? "").trim().replace(/\s+/g, " ").slice(0, MAKS_PANJANG_TINDAKAN);
+    if (!when || !then) continue;
+    hasil.push({
+      // id dari klien dipakai apa adanya kalau bentuknya wajar, supaya urutan
+      // dan status aktif tidak berubah tiap kali disimpan.
+      id: typeof a.id === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(a.id) ? a.id : newId(),
+      when,
+      then,
+      enabled: a.enabled !== false,
+      createdAt: typeof a.createdAt === "number" ? a.createdAt : Date.now(),
+    });
+  }
+  return hasil;
+}
+
+function newId(): string {
+  return globalThis.crypto?.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10);
+}
+
 export async function PUT(request: Request) {
   try {
     let body: Partial<AIConfig>;
@@ -70,6 +107,7 @@ export async function PUT(request: Request) {
       model: body.model?.trim() || undefined,
       tone: body.tone?.trim() || undefined,
       customInstructions: body.customInstructions?.trim() || undefined,
+      actions: bersihkanTindakan(body.actions),
       escalateWhenUnsure: body.escalateWhenUnsure !== false,
       historyLimit,
       updatedAt: Date.now(),

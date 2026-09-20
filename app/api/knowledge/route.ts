@@ -1,7 +1,14 @@
-// GET  /api/knowledge  → daftar dokumen pengetahuan
-// POST /api/knowledge  → tambah dokumen (fitur berbayar: knowledge_base)
+// GET  /api/knowledge  → daftar sumber pengetahuan
+// POST /api/knowledge  → tambah sumber (fitur berbayar: knowledge_base)
+//
+// Untuk kind "url", isi halaman DIAMBIL di server. Sebelumnya URL hanya
+// disimpan sebagai catatan dan pemilik harus menyalin sendiri isinya — yang
+// berarti fitur "tambah URL" sebenarnya tidak melakukan apa-apa.
+//
+// Pengambilan URL punya penjagaan SSRF; lihat lib/knowledge/ambil.ts.
 import type { KnowledgeDoc } from "@/lib/types";
 import { getPlan } from "@/lib/billing/plans";
+import { AmbilError, ambilHalaman } from "@/lib/knowledge/ambil";
 import { contextErrorResponse, getTenantContext, requireFeature } from "@/lib/tenant/context";
 
 export const runtime = "nodejs";
@@ -26,9 +33,14 @@ export async function POST(request: Request) {
       return Response.json({ error: "JSON tidak valid" }, { status: 400 });
     }
 
-    const title = body.title?.trim();
-    const content = body.content?.trim();
-    if (!title || !content) {
+    const kind = (body.kind ?? "text") as KnowledgeDoc["kind"];
+    const url = body.url?.trim();
+    let title = body.title?.trim();
+    let content = body.content?.trim();
+
+    if (kind === "url") {
+      if (!url) return Response.json({ error: "URL wajib diisi." }, { status: 400 });
+    } else if (!title || !content) {
       return Response.json({ error: "Judul dan isi wajib diisi" }, { status: 400 });
     }
 
@@ -44,11 +56,37 @@ export async function POST(request: Request) {
       );
     }
 
+    let fetchedAt: number | undefined;
+    let truncated: boolean | undefined;
+
+    if (kind === "url") {
+      try {
+        const hasil = await ambilHalaman(url!);
+        // Isi dari halaman dipakai apa adanya; kalau pemilik sudah menulis
+        // catatan sendiri, catatannya ditaruh di depan sebagai konteks.
+        const catatan = content ? `${content}\n\n---\n\n` : "";
+        content = catatan + hasil.teks;
+        title = title || hasil.judul || new URL(hasil.urlAkhir).hostname;
+        fetchedAt = Date.now();
+        truncated = hasil.terpotong || undefined;
+      } catch (e) {
+        if (e instanceof AmbilError) {
+          return Response.json(
+            { error: e.message, gagalAmbil: true },
+            { status: e.salahPengguna ? 400 : 502 },
+          );
+        }
+        throw e;
+      }
+    }
+
     const doc = await ctx.store.addKnowledge({
-      title,
-      content,
-      kind: (body.kind ?? "text") as KnowledgeDoc["kind"],
-      url: body.url?.trim() || undefined,
+      title: title!,
+      content: content!,
+      kind,
+      url: url || undefined,
+      fetchedAt,
+      truncated,
     });
     return Response.json({ doc }, { status: 201 });
   } catch (err) {

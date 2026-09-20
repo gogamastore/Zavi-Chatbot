@@ -80,12 +80,23 @@ export interface Business {
 export interface KnowledgeDoc {
   id: string;
   title: string;
-  /** "text" (pasted) or "url" (reference) or "file" (uploaded content). */
+  /** "text" (pasted) or "url" (fetched page) or "file" (uploaded content). */
   kind: "text" | "url" | "file";
   /** For url kind, the source URL. */
   url?: string;
   /** The actual content passed to the AI. */
   content: string;
+  /**
+   * Epoch ms saat isi URL terakhir berhasil diambil.
+   *
+   * Isi halaman web berubah. Tanpa cap waktu ini, pemilik bisnis tidak punya
+   * cara tahu bahwa yang dipakai AI adalah harga tiga bulan lalu.
+   */
+  fetchedAt?: number;
+  /** Pesan kegagalan pengambilan terakhir. Ditampilkan apa adanya ke pemilik. */
+  fetchError?: string;
+  /** True kalau isi halaman dipotong karena melebihi batas. */
+  truncated?: boolean;
   createdAt: number;
 }
 
@@ -388,6 +399,24 @@ export interface BotConfig {
 /** Penyedia AI yang didukung. Dipilih per tenant atau global. */
 export type AIProvider = "anthropic" | "gemini" | "none";
 
+/**
+ * Satu "tindakan" terstruktur: kalau <when>, lakukan <then>.
+ *
+ * Menggantikan peran satu kotak teks bebas. Aturan yang ditambahkan satu per
+ * satu bisa dimatikan sendiri-sendiri, dibaca ulang pemiliknya, dan diuji
+ * satu-satu — paragraf panjang tidak bisa.
+ */
+export interface AIAction {
+  id: string;
+  /** Pemicunya, mis. "pelanggan menanyakan harga grosir". */
+  when: string;
+  /** Yang harus dilakukan bot, mis. "tawarkan paket isi 5 lalu minta jumlahnya". */
+  then: string;
+  /** Aturan yang dimatikan tetap tersimpan, tapi tidak dikirim ke AI. */
+  enabled: boolean;
+  createdAt: number;
+}
+
 /** Pengaturan AI satu tenant. Firestore: "aiConfigs/{tenantId}". */
 export interface AIConfig {
   tenantId: string;
@@ -398,8 +427,15 @@ export interface AIConfig {
   model?: string;
   /** Gaya bicara tambahan yang disisipkan ke system prompt. */
   tone?: string;
-  /** Instruksi khusus dari pemilik bisnis. */
+  /**
+   * Instruksi umum yang selalu berlaku (bukan bersyarat).
+   *
+   * Dipertahankan demi data lama dan karena memang ada instruksi yang berlaku
+   * setiap saat. Aturan BERSYARAT tempatnya di `actions`.
+   */
   customInstructions?: string;
+  /** Tindakan bersyarat, ditambahkan satu per satu oleh pemilik bisnis. */
+  actions?: AIAction[];
   /** Eskalasi ke admin saat AI ragu. */
   escalateWhenUnsure: boolean;
   /** Batas pesan riwayat yang dikirim ke AI (menahan biaya token). */

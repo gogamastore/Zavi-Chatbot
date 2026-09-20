@@ -67,6 +67,9 @@ export interface Store {
 
   listKnowledge(): Promise<KnowledgeDoc[]>;
   addKnowledge(doc: Omit<KnowledgeDoc, "id" | "createdAt">): Promise<KnowledgeDoc>;
+  getKnowledge(id: string): Promise<KnowledgeDoc | null>;
+  /** Perbarui sebagian isi satu dokumen — dipakai saat menyegarkan URL. */
+  updateKnowledge(id: string, patch: Partial<KnowledgeDoc>): Promise<KnowledgeDoc | null>;
   deleteKnowledge(id: string): Promise<void>;
 
   getBotConfig(): Promise<BotConfig | null>;
@@ -158,6 +161,23 @@ function bagiPemakaian(sub: Subscription, kuotaPaket: number, by: number) {
     aiCreditsBalance: sisaKredit,
     hasil: { dariPaket, dariKredit, sisaKredit } satisfies KonsumsiKuota,
   };
+}
+
+/**
+ * Terapkan patch ke satu objek. Field yang DISEBUT dengan nilai undefined
+ * berarti "hapus", bukan "abaikan".
+ *
+ * Bedanya penting: setelah URL berhasil diambil ulang, `fetchError` harus
+ * benar-benar hilang. Kalau undefined cuma diabaikan (seperti stripUndefined),
+ * pesan kegagalan lama akan menempel selamanya walau isinya sudah segar.
+ */
+function terapkanPatch<T extends object>(lama: T, patch: Partial<T>): T {
+  const hasil: Record<string, unknown> = { ...(lama as Record<string, unknown>) };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) delete hasil[k];
+    else hasil[k] = v;
+  }
+  return hasil as T;
 }
 
 function emptyOrderCounts(): Record<OrderStatus, number> {
@@ -319,6 +339,18 @@ class MemoryStore implements Store {
     const k: KnowledgeDoc = { ...doc, id: newId(), createdAt: Date.now() };
     this.st.knowledge.push(k);
     return k;
+  }
+  async getKnowledge(id: string) {
+    return this.st.knowledge.find((k) => k.id === id) ?? null;
+  }
+  async updateKnowledge(id: string, patch: Partial<KnowledgeDoc>) {
+    const st = this.st;
+    const i = st.knowledge.findIndex((k) => k.id === id);
+    if (i < 0) return null;
+    const lama = st.knowledge[i];
+    // id dan createdAt tidak boleh ikut tertimpa patch.
+    st.knowledge[i] = { ...terapkanPatch(lama, patch), id, createdAt: lama.createdAt };
+    return st.knowledge[i];
   }
   async deleteKnowledge(id: string) {
     const st = this.st;
@@ -513,6 +545,19 @@ class FirestoreStore implements Store {
     const k = { ...stripUndefined(doc), id: ref.id, createdAt: Date.now() } as KnowledgeDoc;
     await ref.set(k);
     return k;
+  }
+  async getKnowledge(id: string) {
+    const snap = await (await this.col("knowledge")).doc(id).get();
+    return snap.exists ? (snap.data() as KnowledgeDoc) : null;
+  }
+  async updateKnowledge(id: string, patch: Partial<KnowledgeDoc>) {
+    const ref = (await this.col("knowledge")).doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) return null;
+    const lama = snap.data() as KnowledgeDoc;
+    const baru = { ...terapkanPatch(lama, patch), id, createdAt: lama.createdAt };
+    await ref.set(baru);
+    return baru;
   }
   async deleteKnowledge(id: string) {
     await (await this.col("knowledge")).doc(id).delete();

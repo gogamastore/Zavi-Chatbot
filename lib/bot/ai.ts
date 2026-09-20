@@ -11,7 +11,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { env, resolveAIProvider } from "@/lib/config";
 import { catatBerhasil, catatGagal } from "./ai-health";
-import type { AIConfig, Business, ChatMessage, KnowledgeDoc } from "@/lib/types";
+import type { AIAction, AIConfig, Business, ChatMessage, KnowledgeDoc } from "@/lib/types";
 
 /** Penanda yang dipancarkan model saat tidak sanggup menjawab dengan aman. */
 const ESCALATE_MARKER = "[[ESCALATE]]";
@@ -33,6 +33,37 @@ interface Turn {
 // System prompt
 // ---------------------------------------------------------------------------
 
+/** Satu sumber pengetahuan, lengkap dengan asal dan kapan diambil. */
+function blokSumber(k: KnowledgeDoc): string {
+  const kepala = `### ${k.title}${k.url ? ` (${k.url})` : ""}`;
+  // Halaman web bisa berubah kapan saja. Memberi tahu model kapan isinya
+  // diambil lebih jujur daripada menyodorkannya seolah berlaku hari ini.
+  const cap =
+    k.kind === "url" && k.fetchedAt
+      ? `\n(Diambil dari situs pada ${new Date(k.fetchedAt).toLocaleDateString("id-ID")}. Kalau pelanggan menanyakan hal yang mungkin sudah berubah seperti stok atau promo, jangan jaminkan.)`
+      : "";
+  return `${kepala}${cap}\n${k.content}`;
+}
+
+/**
+ * Tindakan bersyarat dari pemilik bisnis.
+ *
+ * Ditulis sebagai daftar bernomor, bukan satu paragraf, supaya model bisa
+ * mencocokkan satu per satu — dan supaya aturan yang dimatikan benar-benar
+ * hilang dari prompt, bukan sekadar disembunyikan di UI.
+ */
+function blokTindakan(actions?: AIAction[] | null): string {
+  const aktif = (actions ?? []).filter((a) => a.enabled && a.when.trim() && a.then.trim());
+  if (!aktif.length) return "";
+  const daftar = aktif
+    .map((a, i) => `${i + 1}. KALAU ${a.when.trim()} → ${a.then.trim()}`)
+    .join("\n");
+  return `
+TINDAKAN KHUSUS (cocokkan dengan pesan pelanggan; kalau tidak ada yang cocok, abaikan bagian ini):
+${daftar}
+`;
+}
+
 function buildSystemPrompt(
   business: Business,
   knowledge: KnowledgeDoc[],
@@ -43,9 +74,7 @@ function buildSystemPrompt(
     .join("\n");
 
   const knowledgeBlock = knowledge.length
-    ? knowledge
-        .map((k) => `### ${k.title}${k.url ? ` (${k.url})` : ""}\n${k.content}`)
-        .join("\n\n")
+    ? knowledge.map(blokSumber).join("\n\n")
     : "(Belum ada dokumen tambahan.)";
 
   const gaya =
@@ -53,8 +82,10 @@ function buildSystemPrompt(
     'Ramah, sopan, dan singkat (maksimal 2-4 kalimat). Panggil pelanggan dengan "Kak".';
 
   const tambahan = cfg?.customInstructions?.trim()
-    ? `\nINSTRUKSI KHUSUS DARI PEMILIK BISNIS:\n${cfg.customInstructions.trim()}\n`
+    ? `\nINSTRUKSI UMUM DARI PEMILIK BISNIS:\n${cfg.customInstructions.trim()}\n`
     : "";
+
+  const tindakan = blokTindakan(cfg?.actions);
 
   const aturanEskalasi =
     cfg?.escalateWhenUnsure === false
@@ -83,7 +114,7 @@ ${catalog || "(Belum ada katalog.)"}
 
 DOKUMEN PENGETAHUAN TAMBAHAN:
 ${knowledgeBlock}
-
+${tindakan}
 ATURAN PENTING:
 1. HANYA gunakan informasi di atas. JANGAN mengarang harga, stok, promo, atau janji yang tidak tercantum.
 ${aturanEskalasi}
