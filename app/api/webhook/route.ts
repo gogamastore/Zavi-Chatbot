@@ -170,7 +170,9 @@ export async function POST(request: Request) {
             {
               store,
               entitlement,
-              onAiUsed: () => platform.incrementAiUsage(tenant.id),
+              onAiUsed: async () => {
+                await platform.konsumsiKuotaAI(tenant.id, entitlement.aiRepliesLimit);
+              },
             },
           );
           await sendText(creds, message.from, result.reply);

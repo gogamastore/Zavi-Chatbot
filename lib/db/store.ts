@@ -78,6 +78,16 @@ export interface Store {
   getStats(): Promise<Stats>;
 }
 
+/** Rincian dari mana satu pemakaian AI diambil. Berguna untuk log & audit. */
+export interface KonsumsiKuota {
+  /** Diambil dari jatah bulanan paket. */
+  dariPaket: number;
+  /** Diambil dari kredit top-up. */
+  dariKredit: number;
+  /** Sisa kredit setelah pemakaian ini. */
+  sisaKredit: number;
+}
+
 export interface PlatformStore {
   readonly kind: "firestore" | "memory";
 
@@ -90,8 +100,18 @@ export interface PlatformStore {
 
   getSubscription(tenantId: string): Promise<Subscription | null>;
   saveSubscription(sub: Subscription): Promise<Subscription>;
-  /** Tambah pemakaian AI; dipakai untuk menegakkan kuota paket. */
-  incrementAiUsage(tenantId: string, by?: number): Promise<void>;
+  /**
+   * Catat pemakaian AI: ambil dari kuota bulanan paket dulu, baru dari kredit
+   * top-up. Kuota paket hangus tiap periode, kredit tidak — jadi memakai kuota
+   * lebih dulu adalah urutan yang menguntungkan pelanggan.
+   */
+  konsumsiKuotaAI(
+    tenantId: string,
+    kuotaPaket: number,
+    by?: number,
+  ): Promise<KonsumsiKuota>;
+  /** Tambah kredit hasil pembelian. Atomik, supaya tidak menimpa data lain. */
+  tambahKreditAI(tenantId: string, jumlah: number): Promise<void>;
 
   createPayment(payment: Payment): Promise<Payment>;
   getPayment(orderId: string): Promise<Payment | null>;
@@ -106,6 +126,31 @@ export interface PlatformStore {
 
 function newId(): string {
   return globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+}
+
+/**
+ * Bagi satu pemakaian AI ke kuota paket lalu kredit. Dipakai kedua store
+ * supaya perhitungannya persis sama — memory dan Firestore tidak boleh
+ * berbeda dalam hal yang menyangkut uang pelanggan.
+ *
+ * Kalau kuota dan kredit sama-sama habis, kelebihannya TETAP dicatat di
+ * aiRepliesUsed. Pemakaian yang lolos penjagaan tidak boleh hilang dari
+ * pembukuan hanya karena tidak ada tempat menaruhnya.
+ */
+function bagiPemakaian(sub: Subscription, kuotaPaket: number, by: number) {
+  const terpakai = sub.aiRepliesUsed ?? 0;
+  const kredit = Math.max(0, sub.aiCreditsBalance ?? 0);
+
+  const dariPaket = Math.min(by, Math.max(0, kuotaPaket - terpakai));
+  const dariKredit = Math.min(by - dariPaket, kredit);
+  const kelebihan = by - dariPaket - dariKredit;
+  const sisaKredit = kredit - dariKredit;
+
+  return {
+    aiRepliesUsed: terpakai + dariPaket + kelebihan,
+    aiCreditsBalance: sisaKredit,
+    hasil: { dariPaket, dariKredit, sisaKredit } satisfies KonsumsiKuota,
+  };
 }
 
 function emptyOrderCounts(): Record<OrderStatus, number> {
@@ -328,10 +373,20 @@ class MemoryPlatformStore implements PlatformStore {
     memoryRoot().subscriptions.set(sub.tenantId, sub);
     return sub;
   }
-  async incrementAiUsage(tenantId: string, by = 1) {
+  async konsumsiKuotaAI(tenantId: string, kuotaPaket: number, by = 1) {
+    const sub = memoryRoot().subscriptions.get(tenantId);
+    if (!sub) return { dariPaket: 0, dariKredit: 0, sisaKredit: 0 };
+    const bagi = bagiPemakaian(sub, kuotaPaket, by);
+    sub.aiRepliesUsed = bagi.aiRepliesUsed;
+    sub.aiCreditsBalance = bagi.aiCreditsBalance;
+    sub.updatedAt = Date.now();
+    return bagi.hasil;
+  }
+  async tambahKreditAI(tenantId: string, jumlah: number) {
     const sub = memoryRoot().subscriptions.get(tenantId);
     if (!sub) return;
-    sub.aiRepliesUsed = (sub.aiRepliesUsed ?? 0) + by;
+    sub.aiCreditsBalance = (sub.aiCreditsBalance ?? 0) + jumlah;
+    sub.aiCreditsPurchased = (sub.aiCreditsPurchased ?? 0) + jumlah;
     sub.updatedAt = Date.now();
   }
   async createPayment(payment: Payment) {
@@ -519,11 +574,35 @@ class FirestorePlatformStore implements PlatformStore {
     await (await db()).collection("subscriptions").doc(sub.tenantId).set(stripUndefined(sub));
     return sub;
   }
-  async incrementAiUsage(tenantId: string, by = 1) {
+  async konsumsiKuotaAI(tenantId: string, kuotaPaket: number, by = 1) {
+    const d = await db();
+    const ref = d.collection("subscriptions").doc(tenantId);
+    // Transaksi, bukan sekadar increment: pembagian kuota↔kredit bergantung
+    // pada nilai yang sedang tersimpan, jadi dua pesan yang masuk bersamaan
+    // harus dibaca-tulis berurutan. Firestore mengulang sendiri saat bentrok.
+    return d.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return { dariPaket: 0, dariKredit: 0, sisaKredit: 0 };
+      const bagi = bagiPemakaian(snap.data() as Subscription, kuotaPaket, by);
+      tx.update(ref, {
+        aiRepliesUsed: bagi.aiRepliesUsed,
+        aiCreditsBalance: bagi.aiCreditsBalance,
+        updatedAt: Date.now(),
+      });
+      return bagi.hasil;
+    });
+  }
+  async tambahKreditAI(tenantId: string, jumlah: number) {
     const { FieldValue } = await import("firebase-admin/firestore");
     const ref = (await db()).collection("subscriptions").doc(tenantId);
-    // Increment atomik: dua pesan yang masuk bersamaan tidak saling menimpa.
-    await ref.update({ aiRepliesUsed: FieldValue.increment(by), updatedAt: Date.now() });
+    // Increment atomik dan hanya menyentuh dua field kredit. Penting: kalau
+    // ditulis lewat saveSubscription (set seluruh dokumen), pembelian kredit
+    // yang bersamaan dengan perpanjangan langganan bisa saling menimpa.
+    await ref.update({
+      aiCreditsBalance: FieldValue.increment(jumlah),
+      aiCreditsPurchased: FieldValue.increment(jumlah),
+      updatedAt: Date.now(),
+    });
   }
   async createPayment(payment: Payment) {
     await (await db()).collection("payments").doc(payment.orderId).set(stripUndefined(payment));

@@ -108,13 +108,24 @@ export function computeEntitlement(sub: Subscription, now = Date.now()): Entitle
 
   const aiRepliesLimit = plan.aiRepliesPerMonth;
   const aiRepliesUsed = sub.aiRepliesUsed ?? 0;
-  const aiQuotaExceeded = aiRepliesUsed >= aiRepliesLimit;
+  // Kredit top-up menambah sisa balasan, tapi TIDAK menaikkan aiRepliesLimit:
+  // limit tetap berarti "jatah bulanan paket" supaya angka di UI dan di
+  // konsumsi kuota berbicara tentang hal yang sama.
+  const aiCreditsBalance = Math.max(0, sub.aiCreditsBalance ?? 0);
+  const sisaKuotaPaket = Math.max(0, aiRepliesLimit - aiRepliesUsed);
+  const aiRepliesRemaining = sisaKuotaPaket + aiCreditsBalance;
+  const aiQuotaExceeded = aiRepliesRemaining <= 0;
 
   const features = {} as Record<FeatureKey, boolean>;
   for (const f of ALL_FEATURES) {
     let boleh = plan.features.includes(f);
     // Akun terkunci: matikan fitur berbayar, tapi biarkan pelanggan melihat
     // data miliknya sendiri (chats & orders tidak ada di daftar terkunci).
+    //
+    // Perhatikan urutannya: penguncian diperiksa SEBELUM kredit. Punya sisa
+    // kredit tidak membuka AI kalau langganan mati — kredit itu tambahan kuota,
+    // bukan pengganti langganan. Kredit tidak hangus, tetap menunggu sampai
+    // langganan diperpanjang.
     if (locked && FEATURES_LOCKED_WHEN_UNPAID.includes(f)) boleh = false;
     // Kuota AI habis hanya mematikan AI, bukan seluruh layanan.
     if (f === "ai_replies" && aiQuotaExceeded) boleh = false;
@@ -130,6 +141,8 @@ export function computeEntitlement(sub: Subscription, now = Date.now()): Entitle
     features,
     aiRepliesUsed,
     aiRepliesLimit,
+    aiCreditsBalance,
+    aiRepliesRemaining,
     aiQuotaExceeded,
     reason: alasan(status, trialDaysLeft),
   };
@@ -153,6 +166,8 @@ export function lockedEntitlement(reason = "Akun belum aktif."): Entitlement {
     features,
     aiRepliesUsed: 0,
     aiRepliesLimit: 0,
+    aiCreditsBalance: 0,
+    aiRepliesRemaining: 0,
     aiQuotaExceeded: true,
     reason,
   };

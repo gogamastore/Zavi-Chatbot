@@ -4,7 +4,7 @@
 > Log rinci per sesi ada di folder [`catatan/`](./catatan/).
 > Belum pakai GitHub — penyimpanan di hard disk eksternal. **Backup folder ini secara berkala.**
 
-Terakhir diperbarui: **19 September 2026**
+Terakhir diperbarui: **20 September 2026**
 
 ---
 
@@ -89,6 +89,43 @@ D:\Zavi Wa Assistant\
 > **Auth sudah aktif & teruji.** Email/Password + Google Enabled di Firebase
 > Console. Alur lengkap daftar → trial 3 hari → terkunci → bayar → terbuka
 > otomatis sudah diverifikasi end-to-end dengan akun sungguhan.
+
+### ✅ Fitur ala Kommo (sesi 8–9)
+
+Daftar keinginan dari `catatan/referensi/ALUR INTEGRASI WHATSAPP KOMMO.pdf`,
+dikerjakan berurutan dari yang paling cepat menghasilkan:
+
+1. **Impor katalog dari Excel/CSV** — unduh template `.xlsx` (dua lembar:
+   *Katalog* untuk data, *Petunjuk* untuk cara pakai), unggah, lalu
+   **pratinjau dulu** sebelum disimpan. Impor tidak pernah menimpa katalog
+   diam-diam: pemilik memilih "ganti" atau "tambahkan", lalu menekan Simpan.
+   Batas sengaja ketat (2 MB, 500 produk, hanya `.xlsx`/`.csv`) karena berkas
+   ini datang dari luar.
+2. **Beli kredit AI (top-up)** — tiga paket (250 / 1.000 / 3.000 balasan) lewat
+   Midtrans yang sudah ada. Keputusan penting di fitur ini:
+   - **Kredit dipakai setelah kuota bulanan paket habis**, tidak sebaliknya.
+     Kuota bulanan hangus tiap periode, kredit tidak — jadi memakai yang akan
+     hangus lebih dulu menguntungkan pelanggan.
+   - **Kredit tidak hangus** saat periode langganan berganti. Sudah dibayar
+     terpisah, jadi menghanguskannya sama dengan mengambil barang yang sudah
+     dibeli.
+   - **Kredit bukan pengganti langganan.** Saat akun terkunci, punya kredit
+     tetap tidak membuka AI — dan penjualan kredit ke akun terkunci ditolak
+     di server (403), supaya tidak ada yang membayar sesuatu yang belum bisa
+     dipakai.
+   - **Harga per kredit selalu di atas harga per balasan paket Pro**
+     (Rp 83). Kalau top-up lebih murah daripada naik paket, pendapatan
+     berulang hilang. Aturan ini ada di komentar `lib/billing/credits.ts` dan
+     diuji otomatis.
+   - `terapkanStatusPembayaran()` tetap satu-satunya pintu aktivasi. Pembelian
+     kredit **tidak** memperpanjang masa aktif dan **tidak** me-reset
+     pemakaian — hanya menambah saldo, lewat increment atomik.
+
+Sisa daftar Kommo yang belum dikerjakan: tab "Sumber" & "Tindakan" terstruktur,
+katalog dari URL website, Embedded Signup (menunggu verifikasi bisnis Meta),
+galeri template bot berwarna. Pipeline CRM ditunda atas permintaan pemilik —
+hanya relevan kalau mitra berjualan lewat META, sedangkan penjualan lewat
+aplikasi/website sendiri tidak akan terbaca.
 
 ### 🔜 Diputuskan, dikerjakan nanti
 

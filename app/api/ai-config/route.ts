@@ -36,6 +36,8 @@ export async function GET(request: Request) {
       quota: {
         used: ctx.entitlement.aiRepliesUsed,
         limit: ctx.entitlement.aiRepliesLimit,
+        credits: ctx.entitlement.aiCreditsBalance,
+        remaining: ctx.entitlement.aiRepliesRemaining,
         exceeded: ctx.entitlement.aiQuotaExceeded,
       },
     });

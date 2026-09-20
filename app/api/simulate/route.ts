@@ -33,7 +33,9 @@ export async function POST(request: Request) {
       {
         store: ctx.store,
         entitlement: ctx.entitlement,
-        onAiUsed: () => platform.incrementAiUsage(ctx.tenant.id),
+        onAiUsed: async () => {
+          await platform.konsumsiKuotaAI(ctx.tenant.id, ctx.entitlement.aiRepliesLimit);
+        },
       },
     );
 

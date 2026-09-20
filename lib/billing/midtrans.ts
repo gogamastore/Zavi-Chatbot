@@ -59,6 +59,12 @@ export interface SnapRequest {
   orderId: string;
   amountIdr: number;
   namaPaket: string;
+  /**
+   * Keterangan singkat pada rincian item di halaman Midtrans, mis. "1 bulan"
+   * atau "1.000 balasan". Pelanggan membacanya sebelum membayar, jadi ini yang
+   * membedakan tagihan langganan dari tagihan kredit.
+   */
+  keterangan?: string;
   pelanggan: { nama: string; email: string; telepon?: string };
 }
 
@@ -87,7 +93,7 @@ export async function createSnapTransaction(req: SnapRequest): Promise<SnapResul
           id: req.namaPaket,
           price: Math.round(req.amountIdr),
           quantity: 1,
-          name: `Zavi ${req.namaPaket} — 1 bulan`.slice(0, 50),
+          name: `Zavi ${req.namaPaket} — ${req.keterangan ?? "1 bulan"}`.slice(0, 50),
         },
       ],
       customer_details: {
@@ -195,8 +201,13 @@ export async function getTransactionStatus(
   return json as MidtransNotification;
 }
 
-/** order_id unik namun mudah ditelusuri: ZAVI-<tenant>-<waktu>. */
-export function buatOrderId(tenantId: string): string {
+/**
+ * order_id unik namun mudah ditelusuri: <awalan>-<tenant>-<waktu>.
+ *
+ * Awalan berbeda untuk kredit supaya di dashboard Midtrans langsung kelihatan
+ * mana tagihan langganan dan mana top-up, tanpa perlu membuka database kita.
+ */
+export function buatOrderId(tenantId: string, awalan = "ZAVI"): string {
   const ringkas = tenantId.replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
-  return `ZAVI-${ringkas}-${Date.now().toString(36).toUpperCase()}`;
+  return `${awalan}-${ringkas}-${Date.now().toString(36).toUpperCase()}`;
 }

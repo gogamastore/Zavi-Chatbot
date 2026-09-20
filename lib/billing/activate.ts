@@ -1,6 +1,7 @@
 // ---------------------------------------------------------------------------
 // Aktivasi langganan — SATU-SATUNYA tempat yang boleh mengubah langganan
-// menjadi "active".
+// menjadi "active", dan satu-satunya tempat kredit AI hasil pembelian
+// ditambahkan ke saldo tenant.
 //
 // Dipakai oleh dua pemanggil:
 //   - webhook notifikasi Midtrans (jalur cepat, sedetik setelah bayar)
@@ -23,6 +24,8 @@ export interface HasilAktivasi {
   /** True kalau langganan baru saja diaktifkan oleh pemanggilan ini. */
   diaktifkan: boolean;
   status: PaymentStatus;
+  /** Kredit AI yang baru ditambahkan (pembelian top-up). */
+  kreditDitambah?: number;
   /** Alasan singkat untuk log. */
   catatan: string;
 }
@@ -54,6 +57,24 @@ export async function terapkanStatusPembayaran(
       return { diaktifkan: false, status: hasil, catatan: "langganan tenant tidak ditemukan" };
     }
     const now = Date.now();
+
+    // Beli kredit: HANYA menambah saldo kredit.
+    //
+    // Sengaja tidak menyentuh status, currentPeriodEnd, maupun aiRepliesUsed.
+    // Membeli kredit bukan membayar langganan — kalau di sini masa aktif ikut
+    // diperpanjang, pelanggan bisa memperpanjang layanan dengan harga top-up
+    // dan tidak pernah berlangganan lagi.
+    if (payment.kind === "credits") {
+      const jumlah = Math.max(0, Math.trunc(payment.credits ?? 0));
+      if (jumlah > 0) await platform.tambahKreditAI(payment.tenantId, jumlah);
+      return {
+        diaktifkan: false,
+        status: hasil,
+        kreditDitambah: jumlah,
+        catatan: `+${jumlah} kredit AI`,
+      };
+    }
+
     // Perpanjang dari sisa masa aktif, bukan dari hari ini — pelanggan yang
     // membayar lebih awal tidak kehilangan hari yang sudah dibayar.
     const mulai = Math.max(sub.currentPeriodEnd ?? 0, now);
@@ -81,7 +102,9 @@ export async function terapkanStatusPembayaran(
   // Gagal/kedaluwarsa: JANGAN mencabut akses di sini. computeEntitlement yang
   // memutuskan dari tanggal — pelanggan mungkin masih punya sisa trial atau
   // periode berbayar yang sah.
-  if ((hasil === "failed" || hasil === "expired") && !sudahLunas) {
+  // Pembelian kredit yang gagal tidak boleh menyentuh status langganan sama
+  // sekali — status "pending" di sana milik transaksi langganan yang lain.
+  if ((hasil === "failed" || hasil === "expired") && !sudahLunas && payment.kind !== "credits") {
     const sub = await platform.getSubscription(payment.tenantId);
     if (sub && sub.status === "pending") {
       await platform.saveSubscription({ ...sub, status: "trial", updatedAt: Date.now() });

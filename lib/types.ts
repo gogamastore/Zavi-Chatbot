@@ -155,6 +155,19 @@ export interface Tenant {
 
 export type PlanId = "trial" | "basic" | "pro";
 
+/** Paket kredit AI tambahan (top-up), dibeli terpisah dari langganan. */
+export type CreditPackId = "kredit-250" | "kredit-1000" | "kredit-3000";
+
+export interface CreditPack {
+  id: CreditPackId;
+  name: string;
+  /** Jumlah balasan AI tambahan yang didapat. */
+  credits: number;
+  priceIdr: number;
+  /** Label kecil di kartu, mis. "Paling laris". */
+  badge?: string;
+}
+
 /** Fitur yang bisa dikunci/dibuka per paket. */
 export type FeatureKey =
   | "simulator"        // uji bot di browser
@@ -220,6 +233,16 @@ export interface Subscription {
   currentPeriodEnd?: number;
   /** Pemakaian AI periode berjalan, untuk menegakkan kuota. */
   aiRepliesUsed: number;
+  /**
+   * Sisa kredit AI hasil pembelian top-up.
+   *
+   * Sengaja TIDAK di-reset saat periode baru dimulai: kredit ini sudah dibayar
+   * terpisah, jadi menghanguskannya tiap bulan sama saja dengan mengambil
+   * barang yang sudah dibeli pelanggan.
+   */
+  aiCreditsBalance?: number;
+  /** Total kredit yang pernah dibeli. Hanya untuk audit/laporan. */
+  aiCreditsPurchased?: number;
   /** Epoch ms saat penghitung kuota terakhir di-reset. */
   usageResetAt: number;
   /** order_id Midtrans dari transaksi terakhir. */
@@ -246,7 +269,11 @@ export interface Entitlement {
   features: Record<FeatureKey, boolean>;
   aiRepliesUsed: number;
   aiRepliesLimit: number;
-  /** True kalau kuota AI habis (fitur lain tetap jalan). */
+  /** Sisa kredit top-up, di luar kuota bulanan paket. */
+  aiCreditsBalance: number;
+  /** Sisa balasan AI seluruhnya = sisa kuota paket + kredit top-up. */
+  aiRepliesRemaining: number;
+  /** True kalau kuota paket DAN kredit sama-sama habis (fitur lain tetap jalan). */
   aiQuotaExceeded: boolean;
   /** Alasan singkat dalam Bahasa Indonesia untuk ditampilkan ke pengguna. */
   reason: string;
@@ -256,12 +283,28 @@ export interface Entitlement {
 
 export type PaymentStatus = "pending" | "paid" | "failed" | "expired" | "refunded";
 
+/** Yang dibeli: perpanjangan langganan, atau kredit AI tambahan. */
+export type PaymentKind = "subscription" | "credits";
+
 /** Satu percobaan pembayaran. Firestore: "payments/{orderId}". */
 export interface Payment {
   /** order_id yang dikirim ke Midtrans; juga id dokumen. */
   orderId: string;
   tenantId: string;
+  /**
+   * Jenis pembelian. Pembayaran lama tidak punya field ini — kosong berarti
+   * "subscription", jadi riwayat sebelum fitur kredit ada tetap terbaca benar.
+   */
+  kind?: PaymentKind;
+  /**
+   * Paket langganan. Untuk pembelian kredit, diisi paket yang sedang dipakai
+   * tenant saat membeli — sekadar jejak audit, tidak dipakai mengaktifkan apa pun.
+   */
   planId: PlanId;
+  /** Hanya untuk kind "credits". */
+  creditPackId?: CreditPackId;
+  /** Jumlah kredit yang dibeli. Hanya untuk kind "credits". */
+  credits?: number;
   amountIdr: number;
   status: PaymentStatus;
   /** Token Snap dari Midtrans, dipakai frontend membuka popup bayar. */

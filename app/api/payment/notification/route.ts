@@ -51,10 +51,12 @@ export async function POST(request: Request) {
     }
 
     const hasil = await terapkanStatusPembayaran(platform, payment, n);
-    console.log(
-      `[payment] ${payment.orderId} → ${hasil.status}` +
-        (hasil.diaktifkan ? ` | AKTIF: ${hasil.catatan}` : ` | ${hasil.catatan}`),
-    );
+    const label = hasil.diaktifkan
+      ? `AKTIF: ${hasil.catatan}`
+      : hasil.kreditDitambah
+        ? `KREDIT: ${hasil.catatan}`
+        : hasil.catatan;
+    console.log(`[payment] ${payment.orderId} → ${hasil.status} | ${label}`);
     return new Response("OK", { status: 200 });
   } catch (err) {
     console.error("[payment] gagal memproses notifikasi:", err);
