@@ -169,10 +169,29 @@ dikerjakan berurutan dari yang paling cepat menghasilkan:
 
 Sisa urutan yang disepakati (dikerjakan dari atas):
 
-4. **Katalog dari URL situs** — ini yang paling banyak cara gagalnya: situs
-   ber-JavaScript, katalog yang sebenarnya ada di Instagram atau marketplace,
-   dan biaya AI setiap kali memindai. Butuh diskusi desain tersendiri sebelum
-   dikerjakan.
+4. **Katalog dari URL situs** — SELESAI (sesi 10). Jadi jauh lebih kecil
+   daripada perkiraan awal karena bagian paling berisikonya — pengambil URL
+   ber-penjagaan SSRF — sudah dibangun di poin 3 dan tinggal dipakai ulang.
+   Alurnya: ambil halaman → AI memetakan produknya → **pratinjau** → pemilik
+   memilih "ganti"/"tambahkan" → Simpan. Sama seperti impor Excel: tidak
+   pernah menimpa katalog diam-diam.
+   Tiga kekhawatiran yang dulu dicatat, dan jawabannya:
+   - **Situs ber-JavaScript / Instagram / marketplace** — memang tidak
+     terbaca. Ditangani dengan jujur: pemindaian mengembalikan daftar kosong
+     beserta alasannya dan menyuruh pakai Excel atau salin-tempel, bukan
+     diam-diam menyimpan katalog kosong.
+   - **Biaya AI tiap memindai** — satu pemindaian dihitung **satu balasan AI**
+     dari kuota tenant, dipotong hanya setelah panggilan berhasil. Tanpa itu,
+     pemindai jadi celah memakai AI tanpa batas di luar kuota yang dibayar.
+     Mode demo ditolak karena bisa dipakai tanpa login.
+   - **AI mengarang produk** — kekhawatiran terbesar dan tidak ada di catatan
+     awal. Halaman katalog penuh teks promosi dan menu; model yang "membantu"
+     bisa menyulapnya jadi produk berikut harga karangan, dan harga karangan
+     di WhatsApp adalah janji yang harus ditepati pemiliknya. Dijaga dengan
+     prompt yang melarang mengarang secara eksplisit, harga dikosongkan kalau
+     tidak tertulis, hasil dibersihkan & dibatasi di server, dan peringatan
+     "dibaca mesin — periksa dulu" selalu ikut. Diuji: halaman non-katalog
+     menghasilkan 0 produk, bukan produk karangan.
 5. **Embedded Signup + "Hubungkan WhatsApp lewat login Facebook"** — persis
    seperti Kommo: mitra menekan satu tombol, login dengan akun Facebook
    mereka, lalu nomor WhatsApp-nya tersambung ke **App ID Meta milik Zavi**

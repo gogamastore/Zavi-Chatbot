@@ -139,11 +139,16 @@ function toTurns(history: ChatMessage[], latest: string): Turn[] {
 
 let anthropicClient: Anthropic | null = null;
 
-async function callAnthropic(system: string, turns: Turn[], model: string): Promise<string> {
+async function callAnthropic(
+  system: string,
+  turns: Turn[],
+  model: string,
+  maxTokens = 600,
+): Promise<string> {
   anthropicClient ??= new Anthropic({ apiKey: env.anthropicApiKey });
   const response = await anthropicClient.messages.create({
     model,
-    max_tokens: 600,
+    max_tokens: maxTokens,
     // Chat CS sederhana: utamakan cepat + murah.
     thinking: { type: "disabled" },
     output_config: { effort: "low" },
@@ -161,7 +166,12 @@ async function callAnthropic(system: string, turns: Turn[], model: string): Prom
 // Adapter: Google Gemini
 // ---------------------------------------------------------------------------
 
-async function callGemini(system: string, turns: Turn[], model: string): Promise<string> {
+async function callGemini(
+  system: string,
+  turns: Turn[],
+  model: string,
+  maxTokens = 600,
+): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const res = await fetch(url, {
     method: "POST",
@@ -173,7 +183,7 @@ async function callGemini(system: string, turns: Turn[], model: string): Promise
         role: t.role === "assistant" ? "model" : "user",
         parts: [{ text: t.text }],
       })),
-      generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
+      generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
     }),
   });
 
@@ -189,6 +199,51 @@ async function callGemini(system: string, turns: Turn[], model: string): Promise
 // ---------------------------------------------------------------------------
 // Pintu masuk
 // ---------------------------------------------------------------------------
+
+/** Dilempar saat AI belum aktif di server. */
+export class AITidakAktifError extends Error {
+  constructor() {
+    super("Penyedia AI belum aktif di server.");
+    this.name = "AITidakAktifError";
+  }
+}
+
+/**
+ * Satu panggilan AI untuk tugas SELAIN chat pelanggan — mis. membaca halaman
+ * katalog dan memetakan produknya.
+ *
+ * Dipisah dari askAI() karena kebutuhannya berbeda: tidak ada riwayat
+ * percakapan, tidak ada penanda eskalasi, dan jawabannya bisa jauh lebih
+ * panjang. Yang tetap sama: penyedia dipilih dari tempat yang sama, dan
+ * berhasil/gagalnya tetap dicatat ke status kesehatan AI supaya dashboard
+ * tidak pernah menampilkan lampu hijau palsu.
+ */
+export async function panggilAISekali(
+  system: string,
+  prompt: string,
+  opsi: { maxTokens?: number; model?: string } = {},
+): Promise<string> {
+  const provider = resolveAIProvider();
+  if (provider === "none") throw new AITidakAktifError();
+
+  const model =
+    opsi.model?.trim() || (provider === "anthropic" ? env.anthropicModel : env.geminiModel);
+  const turns: Turn[] = [{ role: "user", text: prompt }];
+
+  try {
+    const teks =
+      provider === "anthropic"
+        ? await callAnthropic(system, turns, model, opsi.maxTokens ?? 2_000)
+        : await callGemini(system, turns, model, opsi.maxTokens ?? 2_000);
+    catatBerhasil();
+    return teks;
+  } catch (err) {
+    const pesan = err instanceof Error ? err.message : String(err);
+    console.error(`[ai:${provider}] gagal (tugas):`, pesan);
+    catatGagal(pesan);
+    throw err;
+  }
+}
 
 /**
  * Minta AI menjawab. `history` adalah percakapan sebelumnya dengan pelanggan

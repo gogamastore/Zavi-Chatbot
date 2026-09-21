@@ -498,6 +498,7 @@ function KatalogProduk() {
       ) : (
         <>
           <ImporKatalog jumlahSekarang={b.catalog.length} onTerapkan={terapkan} />
+          <KatalogDariUrl jumlahSekarang={b.catalog.length} onTerapkan={terapkan} />
 
           {belumDisimpan && (
             <div
@@ -525,6 +526,165 @@ function KatalogProduk() {
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * Susun katalog dari halaman web.
+ *
+ * Sama seperti impor Excel, alurnya tiga langkah: pindai → LIHAT hasilnya →
+ * baru terapkan. Bedanya di sini hasil bacaannya datang dari AI atas halaman
+ * orang, jadi justru lebih wajib diperiksa: yang keliru bukan kolom yang
+ * tertukar, melainkan harga yang salah baca dan akan dijanjikan ke pelanggan.
+ */
+function KatalogDariUrl({
+  jumlahSekarang,
+  onTerapkan,
+}: {
+  jumlahSekarang: number;
+  onTerapkan(items: CatalogItem[], mode: "ganti" | "tambah"): void;
+}) {
+  const [buka, setBuka] = useState(false);
+  const [url, setUrl] = useState("");
+  const [sibuk, setSibuk] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasil, setHasil] = useState<{
+    items: CatalogItem[];
+    peringatan: string[];
+    urlAkhir: string;
+    judulHalaman?: string;
+    panjangTeks: number;
+  } | null>(null);
+
+  async function pindai() {
+    if (!url.trim()) return;
+    setSibuk(true);
+    setError(null);
+    setHasil(null);
+    try {
+      setHasil(
+        await apiFetch("/api/catalog/from-url", {
+          method: "POST",
+          body: JSON.stringify({ url: url.trim() }),
+        }),
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSibuk(false);
+    }
+  }
+
+  function terapkan(mode: "ganti" | "tambah") {
+    if (!hasil?.items.length) return;
+    onTerapkan(hasil.items, mode);
+    setHasil(null);
+    setUrl("");
+    setBuka(false);
+  }
+
+  if (!buka) {
+    return (
+      <button className="btn btn-ghost text-sm mt-3" onClick={() => setBuka(true)}>
+        🌐 Susun katalog dari halaman web
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-[var(--border)] p-4">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div>
+          <div className="font-medium text-sm">Susun katalog dari halaman web</div>
+          <p className="text-xs text-[var(--muted)] mt-0.5">
+            AI membaca halaman produk Anda lalu mengusulkan daftarnya. Terhitung{" "}
+            <b>1 balasan AI</b> dari kuota.
+          </p>
+        </div>
+        <button className="btn btn-ghost text-xs" onClick={() => setBuka(false)}>
+          Tutup
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <input
+          className="input flex-1 min-w-[220px]"
+          placeholder="https://tokosaya.com/produk"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <button className="btn btn-primary" onClick={pindai} disabled={sibuk || !url.trim()}>
+          {sibuk ? "Membaca halaman…" : "Pindai"}
+        </button>
+      </div>
+
+      <p className="text-xs text-[var(--muted)] mt-2">
+        Halaman yang memuat produknya lewat JavaScript — katalog Instagram,
+        lapak marketplace, sebagian toko modern — biasanya terbaca kosong.
+        Untuk itu pakai unggah Excel atau salin-tempel manual.
+      </p>
+
+      {error && (
+        <div className="text-sm mt-3" style={{ color: "#991b1b" }}>
+          {error}
+        </div>
+      )}
+
+      {hasil && (
+        <div className="mt-4">
+          <div className="text-sm font-medium mb-1">
+            Terbaca {hasil.items.length} produk
+            {hasil.judulHalaman && ` dari "${hasil.judulHalaman}"`}
+          </div>
+          {hasil.peringatan.length > 0 && (
+            <ul className="text-xs mb-2 space-y-0.5" style={{ color: "#92400e" }}>
+              {hasil.peringatan.map((p) => (
+                <li key={p}>• {p}</li>
+              ))}
+            </ul>
+          )}
+
+          {hasil.items.length > 0 && (
+            <>
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-[var(--border)]">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-[var(--muted)] border-b border-[var(--border)]">
+                      <th className="px-3 py-2 font-medium">Nama</th>
+                      <th className="px-3 py-2 font-medium">Harga</th>
+                      <th className="px-3 py-2 font-medium">Deskripsi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hasil.items.map((it, i) => (
+                      <tr key={i} className="border-b border-[var(--border)] last:border-0">
+                        <td className="px-3 py-1.5">{it.name}</td>
+                        <td className="px-3 py-1.5">
+                          {it.price || <span style={{ color: "#991b1b" }}>(kosong)</span>}
+                        </td>
+                        <td className="px-3 py-1.5 text-[var(--muted)]">{it.description ?? ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-3">
+                <button className="btn btn-primary text-sm" onClick={() => terapkan("ganti")}>
+                  Ganti katalog ({jumlahSekarang} → {hasil.items.length})
+                </button>
+                <button className="btn btn-ghost text-sm" onClick={() => terapkan("tambah")}>
+                  Tambahkan ke yang ada ({jumlahSekarang + hasil.items.length})
+                </button>
+              </div>
+              <p className="text-xs text-[var(--muted)] mt-2">
+                Belum tersimpan — tekan <b>Simpan katalog</b> setelah memilih.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
