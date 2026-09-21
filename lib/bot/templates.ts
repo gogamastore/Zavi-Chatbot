@@ -55,6 +55,8 @@ export const BOT_TEMPLATES: Record<BotTemplateId, BotTemplate> = {
   resto: {
     id: "resto",
     name: "Resto & Kedai Makan",
+    icon: "🍜",
+    accent: "#ea580c",
     description:
       "Untuk usaha makanan: menampilkan daftar menu, harga, dan alur pesan-antar.",
     suitableFor: ["Warung makan", "Kedai kopi", "Catering", "Kue & snack"],
@@ -91,6 +93,8 @@ export const BOT_TEMPLATES: Record<BotTemplateId, BotTemplate> = {
   toko: {
     id: "toko",
     name: "Toko / Online Shop",
+    icon: "🛍️",
+    accent: "#2563eb",
     description:
       "Untuk penjualan barang: katalog produk, stok, ongkir, dan pengiriman.",
     suitableFor: ["Toko baju", "Olshop", "Toko kelontong", "Reseller"],
@@ -127,6 +131,8 @@ export const BOT_TEMPLATES: Record<BotTemplateId, BotTemplate> = {
   klinik: {
     id: "klinik",
     name: "Klinik & Praktik Kesehatan",
+    icon: "🩺",
+    accent: "#0891b2",
     description:
       "Untuk layanan kesehatan: jadwal praktik, pendaftaran, dan janji temu.",
     suitableFor: ["Klinik", "Praktik dokter", "Bidan", "Klinik gigi"],
@@ -163,6 +169,8 @@ export const BOT_TEMPLATES: Record<BotTemplateId, BotTemplate> = {
   jasa: {
     id: "jasa",
     name: "Jasa & Layanan",
+    icon: "🔧",
+    accent: "#7c3aed",
     description:
       "Untuk penyedia jasa: daftar layanan, tarif, dan penjadwalan pekerjaan.",
     suitableFor: ["Servis AC", "Laundry", "Salon", "Fotografi", "Bengkel"],
@@ -191,6 +199,8 @@ export const BOT_TEMPLATES: Record<BotTemplateId, BotTemplate> = {
   custom: {
     id: "custom",
     name: "Kosong (atur sendiri)",
+    icon: "✨",
+    accent: "#64748b",
     description:
       "Mulai dari aturan paling dasar saja, lalu susun sendiri dari nol.",
     suitableFor: ["Jenis usaha lain"],

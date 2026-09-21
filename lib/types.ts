@@ -376,6 +376,16 @@ export interface BotTemplate {
   id: BotTemplateId;
   name: string;
   description: string;
+  /** Lambang di kartu galeri. Emoji, bukan berkas — tidak ada aset yang perlu dimuat. */
+  icon: string;
+  /**
+   * Warna khas template, dipakai di kartu galeri.
+   *
+   * Warna solid hanya untuk lambang dan garis tepi; latar memakai warna yang
+   * sama dengan alpha rendah. Dengan begitu teks tetap dibaca di atas
+   * permukaan biasa dan tidak ada pasangan warna yang kontrasnya meragukan.
+   */
+  accent: string;
   /** Contoh jenis bisnis yang cocok, untuk membantu pengguna memilih. */
   suitableFor: string[];
   menuOptions: { id: string; title: string }[];

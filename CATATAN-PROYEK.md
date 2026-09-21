@@ -230,7 +230,23 @@ Sisa urutan yang disepakati (dikerjakan dari atas):
    sekarang**, tapi baru **hidup setelah verifikasi bisnis Meta selesai**.
    Ini yang akhirnya menggantikan halaman /settings/whatsapp yang sekarang
    masih minta isian manual.
-6. **Galeri template bot berwarna** — kosmetik, paling akhir.
+6. **Galeri template bot berwarna** — SELESAI (sesi 10). Tiap template
+   punya ikon dan warna khas (resto 🍜 jingga, toko 🛍️ biru, klinik 🩺 sian,
+   jasa 🔧 ungu, custom ✨ abu). Kartu juga menampilkan **pratinjau tombol
+   yang akan dilihat pelanggan** — itu yang sebenarnya membantu memilih,
+   bukan warnanya.
+   - Satu komponen `components/GaleriTemplate.tsx` dipakai di **/daftar** dan
+     **/settings/bot**. Kalau keduanya punya galeri sendiri, cepat atau
+     lambat calon mitra melihat pilihan yang berbeda dari yang dia lihat
+     setelah masuk.
+   - Warna khas hanya untuk ikon, garis tepi, dan latar ber-alpha rendah.
+     Teks tetap memakai warna teks biasa di atas permukaan biasa, jadi tidak
+     ada pasangan warna yang kontrasnya meragukan. Garis tepi berwarna hanya
+     muncul saat terpilih supaya galerinya tidak jadi pelangi yang bising.
+
+**Seluruh daftar Kommo selesai.** Yang tersisa dari daftar itu hanya poin 5
+yang menunggu verifikasi bisnis Meta (kodenya sudah siap), dan pipeline CRM
+yang ditunda atas permintaan pemilik.
 
 Pipeline CRM ditunda atas permintaan pemilik — hanya relevan kalau mitra
 berjualan lewat META, sedangkan penjualan lewat aplikasi/website sendiri tidak

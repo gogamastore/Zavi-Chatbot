@@ -8,15 +8,10 @@ import { PageHeader, Empty } from "@/components/ui";
 import { TrialBanner, FeatureGate } from "@/components/Gate";
 import { apiFetch } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/format";
+import GaleriTemplate, { type TemplateKartu } from "@/components/GaleriTemplate";
 import type { BotConfig, BotRule, BotTemplateId } from "@/lib/types";
 
-interface TemplateRingkas {
-  id: BotTemplateId;
-  name: string;
-  description: string;
-  suitableFor: string[];
-  jumlahAturan: number;
-}
+
 
 export default function BotTemplatePage() {
   return (
@@ -34,7 +29,7 @@ export default function BotTemplatePage() {
 }
 
 function EditorBot() {
-  const [templates, setTemplates] = useState<TemplateRingkas[]>([]);
+  const [templates, setTemplates] = useState<TemplateKartu[]>([]);
   const [cfg, setCfg] = useState<BotConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -44,7 +39,7 @@ function EditorBot() {
     void (async () => {
       try {
         const [t, c] = await Promise.all([
-          apiFetch<{ templates: TemplateRingkas[] }>("/api/templates"),
+          apiFetch<{ templates: TemplateKartu[] }>("/api/templates"),
           apiFetch<{ botConfig: BotConfig }>("/api/bot-config"),
         ]);
         setTemplates(t.templates);
@@ -125,32 +120,12 @@ function EditorBot() {
         <p className="text-sm text-[var(--muted)] mb-4">
           Template hanya titik awal — setelah dipilih, semua aturannya bebas Anda ubah.
         </p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {templates.map((t) => {
-            const aktif = t.id === cfg.templateId;
-            return (
-              <button
-                key={t.id}
-                onClick={() => !aktif && gantiTemplate(t.id)}
-                disabled={saving}
-                className="text-left rounded-lg border p-3 transition-colors"
-                style={{
-                  borderColor: aktif ? "var(--wa-green)" : "var(--border)",
-                  background: aktif ? "var(--surface-2)" : "transparent",
-                }}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-sm">{t.name}</span>
-                  {aktif && <span className="badge src-rule">Dipakai</span>}
-                </div>
-                <p className="text-xs text-[var(--muted)] mt-1">{t.description}</p>
-                <p className="text-[11px] text-[var(--muted)] mt-1.5">
-                  {t.suitableFor.join(" · ")} — {t.jumlahAturan} aturan
-                </p>
-              </button>
-            );
-          })}
-        </div>
+        <GaleriTemplate
+          templates={templates}
+          dipilih={cfg.templateId}
+          nonaktif={saving}
+          onPilih={(id) => id !== cfg.templateId && gantiTemplate(id)}
+        />
       </section>
 
       <section className="card p-5">

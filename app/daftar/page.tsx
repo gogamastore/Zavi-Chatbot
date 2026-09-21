@@ -8,15 +8,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthShell, Notice } from "@/components/AuthShell";
 import { apiFetch } from "@/lib/api/client";
+import GaleriTemplate, { type TemplateKartu } from "@/components/GaleriTemplate";
 import { pesanErrorAuth, useAuth } from "@/lib/auth/context";
 import type { BotTemplateId } from "@/lib/types";
 
-interface TemplateRingkas {
-  id: BotTemplateId;
-  name: string;
-  description: string;
-  suitableFor: string[];
-}
+
 
 export default function DaftarPage() {
   const router = useRouter();
@@ -144,7 +140,7 @@ function LangkahAkun({
 }
 
 function LangkahBisnis({ onSelesai }: { onSelesai(): void }) {
-  const [templates, setTemplates] = useState<TemplateRingkas[]>([]);
+  const [templates, setTemplates] = useState<TemplateKartu[]>([]);
   const [templateId, setTemplateId] = useState<BotTemplateId>("resto");
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
@@ -152,7 +148,7 @@ function LangkahBisnis({ onSelesai }: { onSelesai(): void }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch<{ templates: TemplateRingkas[] }>("/api/templates")
+    apiFetch<{ templates: TemplateKartu[] }>("/api/templates")
       .then((d) => setTemplates(d.templates))
       .catch(() => {});
   }, []);
@@ -195,31 +191,15 @@ function LangkahBisnis({ onSelesai }: { onSelesai(): void }) {
 
         <div>
           <label className="label">Jenis usaha</label>
-          <div className="space-y-2">
-            {templates.map((t) => (
-              <label
-                key={t.id}
-                className="flex gap-3 items-start rounded-lg border p-3 cursor-pointer"
-                style={{
-                  borderColor: templateId === t.id ? "var(--wa-green)" : "var(--border)",
-                  background: templateId === t.id ? "var(--surface-2)" : "transparent",
-                }}
-              >
-                <input
-                  type="radio"
-                  name="template"
-                  className="mt-1"
-                  checked={templateId === t.id}
-                  onChange={() => setTemplateId(t.id)}
-                />
-                <span className="text-sm">
-                  <span className="font-medium">{t.name}</span>
-                  <br />
-                  <span className="text-[var(--muted)] text-xs">{t.suitableFor.join(" · ")}</span>
-                </span>
-              </label>
-            ))}
-          </div>
+          {/* Galeri yang sama persis dengan yang dilihat setelah masuk —
+              satu komponen, supaya pilihan tidak pernah berbeda. Pratinjau
+              tombol menu dimatikan di sini agar formulir daftar tetap ringkas. */}
+          <GaleriTemplate
+            templates={templates}
+            dipilih={templateId}
+            onPilih={setTemplateId}
+            tampilkanMenu={false}
+          />
           <p className="text-xs text-[var(--muted)] mt-2">
             Bisa diganti kapan saja di Pengaturan → Bot Template.
           </p>

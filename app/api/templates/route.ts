@@ -10,6 +10,8 @@ export async function GET() {
       id: t.id,
       name: t.name,
       description: t.description,
+      icon: t.icon,
+      accent: t.accent,
       suitableFor: t.suitableFor,
       menuOptions: t.menuOptions,
       jumlahAturan: t.rules.length,
