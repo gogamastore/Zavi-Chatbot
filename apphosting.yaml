@@ -108,6 +108,18 @@ env:
   - variable: META_APP_SECRET
     secret: META_APP_SECRET
     availability: [RUNTIME]
+  # App ID bukan rahasia — memang tampil di browser saat SDK Facebook dimuat.
+  - variable: META_APP_ID
+    value: "1058206833505540"
+    availability: [RUNTIME]
+  # Id konfigurasi Embedded Signup ("Hubungkan WhatsApp lewat Facebook").
+  # Dibuat di Meta App Dashboard -> WhatsApp -> Embedded Signup, dan baru bisa
+  # dibuat SETELAH verifikasi bisnis Meta selesai. Selama kosong, tombolnya
+  # ditampilkan mati beserta keterangan apa yang kurang — bukan tombol yang
+  # kelihatan hidup lalu gagal misterius. Juga bukan rahasia.
+  - variable: META_CONFIG_ID
+    value: ""
+    availability: [RUNTIME]
 
   # ---------------------------------------------------------------------------
   # Midtrans
