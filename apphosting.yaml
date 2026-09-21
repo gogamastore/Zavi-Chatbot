@@ -112,14 +112,20 @@ env:
   - variable: META_APP_ID
     value: "1058206833505540"
     availability: [RUNTIME]
-  # Id konfigurasi Embedded Signup ("Hubungkan WhatsApp lewat Facebook").
-  # Dibuat di Meta App Dashboard -> WhatsApp -> Embedded Signup, dan baru bisa
-  # dibuat SETELAH verifikasi bisnis Meta selesai. Selama kosong, tombolnya
-  # ditampilkan mati beserta keterangan apa yang kurang — bukan tombol yang
-  # kelihatan hidup lalu gagal misterius. Juga bukan rahasia.
-  - variable: META_CONFIG_ID
-    value: ""
-    availability: [RUNTIME]
+  # META_CONFIG_ID sengaja BELUM didaftarkan di sini.
+  #
+  # Ini id konfigurasi Embedded Signup ("Hubungkan WhatsApp lewat Facebook"),
+  # dibuat di Meta App Dashboard -> WhatsApp -> Embedded Signup, dan baru bisa
+  # dibuat SETELAH verifikasi bisnis Meta selesai. Bukan rahasia.
+  #
+  # App Hosting menolak berkas ini kalau ada variable dengan value kosong,
+  # sedangkan kode kita memperlakukan env yang tidak ada persis sama dengan
+  # yang kosong: tombolnya ditampilkan mati beserta keterangan apa yang
+  # kurang. Jadi biarkan absen, lalu tambahkan blok ini kalau sudah punya:
+  #
+  #   - variable: META_CONFIG_ID
+  #     value: "1234567890"
+  #     availability: [RUNTIME]
 
   # ---------------------------------------------------------------------------
   # Midtrans
