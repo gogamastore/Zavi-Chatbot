@@ -436,6 +436,16 @@ export interface AIConfig {
   customInstructions?: string;
   /** Tindakan bersyarat, ditambahkan satu per satu oleh pemilik bisnis. */
   actions?: AIAction[];
+  /**
+   * Serahkan pertanyaan produk/harga ke AI, bukan dibalas daftar katalog
+   * otomatis oleh aturan template. Default: ya (undefined dianggap true).
+   *
+   * Dengan katalog yang diimpor dari Excel, AI bisa menjawab "ada baju hitam
+   * ukuran L?" dengan tepat; aturan template hanya bisa menyiram seluruh
+   * daftar. Tetap ada cadangannya: kalau AI mati/terkunci/kuota habis,
+   * aturan katalog otomatis mengambil alih lagi.
+   */
+  productQuestionsToAI?: boolean;
   /** Eskalasi ke admin saat AI ragu. */
   escalateWhenUnsure: boolean;
   /** Batas pesan riwayat yang dikirim ke AI (menahan biaya token). */

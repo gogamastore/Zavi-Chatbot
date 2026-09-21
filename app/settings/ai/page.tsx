@@ -17,8 +17,16 @@ import { useCallback, useEffect, useState } from "react";
 import { PageHeader, Empty } from "@/components/ui";
 import { TrialBanner, FeatureGate } from "@/components/Gate";
 import { apiFetch } from "@/lib/api/client";
+import ImporKatalog from "@/components/ImporKatalog";
 import { formatDateTime } from "@/lib/format";
-import type { AIAction, AIConfig, AIProvider, KnowledgeDoc } from "@/lib/types";
+import type {
+  AIAction,
+  AIConfig,
+  AIProvider,
+  Business,
+  CatalogItem,
+  KnowledgeDoc,
+} from "@/lib/types";
 
 interface AIHealthInfo {
   status: "belum-dikonfigurasi" | "belum-diperiksa" | "berfungsi" | "gagal";
@@ -289,6 +297,27 @@ function TabPerilaku({
         <input
           type="checkbox"
           className="mt-1"
+          checked={c.productQuestionsToAI !== false}
+          onChange={(e) => set("productQuestionsToAI", e.target.checked)}
+        />
+        <span className="text-sm">
+          <span className="font-medium">AI yang menjawab pertanyaan produk</span>
+          <br />
+          <span className="text-[var(--muted)]">
+            Aktif: &quot;ada baju hitam ukuran L?&quot; dijawab AI berdasarkan katalog —
+            tepat sasaran. Mati: bot mengirim seluruh daftar katalog apa pun
+            pertanyaannya. Pelanggan yang menekan tombol{" "}
+            <b>Menu &amp; harga</b> tetap menerima daftar lengkap, karena itu
+            yang dia minta. Kalau AI mati atau kuota habis, daftar katalog
+            otomatis mengambil alih lagi.
+          </span>
+        </span>
+      </label>
+
+      <label className="flex items-start gap-3 mt-4 cursor-pointer">
+        <input
+          type="checkbox"
+          className="mt-1"
           checked={c.escalateWhenUnsure}
           onChange={(e) => set("escalateWhenUnsure", e.target.checked)}
         />
@@ -389,6 +418,117 @@ function StatusPenyedia({
 // ===========================================================================
 
 function TabSumber() {
+  return (
+    <div className="space-y-6">
+      <KatalogProduk />
+      <SumberPengetahuan />
+    </div>
+  );
+}
+
+/**
+ * Katalog produk — sumber fakta utama untuk pertanyaan pelanggan.
+ *
+ * Ada di sini, bukan di Profil Bisnis, karena inilah yang dibaca AI saat
+ * ditanya soal produk. Disimpan langsung ke profil bisnis (satu tempat
+ * penyimpanan, supaya tidak ada dua katalog yang bisa berbeda isinya).
+ */
+function KatalogProduk() {
+  const [b, setB] = useState<Business | null>(null);
+  const [menyimpan, setMenyimpan] = useState(false);
+  const [tersimpanPada, setTersimpanPada] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [belumDisimpan, setBelumDisimpan] = useState(false);
+
+  const muat = useCallback(async () => {
+    try {
+      const r = await apiFetch<{ business: Business }>("/api/business");
+      setB(r.business);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, []);
+
+  useEffect(() => {
+    void muat();
+  }, [muat]);
+
+  async function simpan() {
+    if (!b) return;
+    setMenyimpan(true);
+    setError(null);
+    try {
+      await apiFetch("/api/business", { method: "PUT", body: JSON.stringify(b) });
+      setTersimpanPada(Date.now());
+      setBelumDisimpan(false);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setMenyimpan(false);
+    }
+  }
+
+  function terapkan(items: CatalogItem[], mode: "ganti" | "tambah") {
+    setB((p) =>
+      p ? { ...p, catalog: mode === "ganti" ? items : [...p.catalog, ...items] } : p,
+    );
+    setBelumDisimpan(true);
+  }
+
+  return (
+    <section className="card p-5">
+      <h2 className="font-semibold text-lg mb-1">Katalog produk</h2>
+      <p className="text-sm text-[var(--muted)] mb-4">
+        Daftar produk dan harga yang dibaca AI saat pelanggan bertanya. Unggah
+        dari Excel/CSV, atau edit satu per satu di{" "}
+        <a href="/settings/bisnis" className="text-[var(--wa-teal)] underline">
+          Profil Bisnis
+        </a>
+        .
+      </p>
+
+      {error && (
+        <div className="text-sm mb-3" style={{ color: "#991b1b" }}>
+          {error}
+        </div>
+      )}
+
+      {!b ? (
+        <div className="text-sm text-[var(--muted)]">Memuat katalog…</div>
+      ) : (
+        <>
+          <ImporKatalog jumlahSekarang={b.catalog.length} onTerapkan={terapkan} />
+
+          {belumDisimpan && (
+            <div
+              className="rounded-lg px-4 py-2.5 text-sm mt-4 border"
+              style={{ background: "#fffbeb", color: "#92400e", borderColor: "#fde68a" }}
+            >
+              Katalog berubah jadi <b>{b.catalog.length} produk</b> tapi{" "}
+              <b>belum disimpan</b>. Tekan tombol di bawah.
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 mt-4">
+            <button
+              className="btn btn-primary"
+              onClick={simpan}
+              disabled={menyimpan || !belumDisimpan}
+            >
+              {menyimpan ? "Menyimpan…" : "💾 Simpan katalog"}
+            </button>
+            <span className="text-xs text-[var(--muted)]">
+              {b.catalog.length} produk tersimpan
+              {tersimpanPada && ` · ${formatDateTime(tersimpanPada)}`}
+            </span>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function SumberPengetahuan() {
   const [docs, setDocs] = useState<KnowledgeDoc[]>([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");

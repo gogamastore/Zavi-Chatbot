@@ -108,6 +108,7 @@ export async function PUT(request: Request) {
       tone: body.tone?.trim() || undefined,
       customInstructions: body.customInstructions?.trim() || undefined,
       actions: bersihkanTindakan(body.actions),
+      productQuestionsToAI: body.productQuestionsToAI !== false,
       escalateWhenUnsure: body.escalateWhenUnsure !== false,
       historyLimit,
       updatedAt: Date.now(),

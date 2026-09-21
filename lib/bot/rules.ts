@@ -9,7 +9,26 @@ import { isiPlaceholder } from "./templates";
 export interface RuleHit {
   intent: string;
   reply: string;
+  /**
+   * True kalau pelanggan MEMILIH menu ini secara sengaja (menekan tombol atau
+   * mengetik nomornya), bukan kebetulan menyebut kata kuncinya.
+   *
+   * Bedanya menentukan: orang yang menekan "1. Menu & harga" memang minta
+   * daftarnya. Orang yang mengetik "ada baju hitam ga?" tidak — dia bertanya,
+   * dan pertanyaan itu pantas dijawab AI, bukan dibalas guyuran seluruh
+   * katalog.
+   */
+  eksplisit?: boolean;
 }
+
+/**
+ * Intent yang isinya "pertanyaan tentang produk".
+ *
+ * Inilah yang boleh diserahkan ke AI. Intent lain (jam buka, alamat,
+ * pembayaran) jawabannya memang tetap dan lebih baik dijawab aturan: cepat,
+ * gratis, dan tidak mungkin salah.
+ */
+export const INTENT_PRODUK = new Set(["harga"]);
 
 /** The quick-reply menu offered to customers (used by simulator + WA list). */
 export const MENU_OPTIONS: { id: string; title: string }[] = [
@@ -179,14 +198,14 @@ export function matchFromConfig(
   if (Number.isInteger(num) && num >= 1 && num <= cfg.menuOptions.length) {
     const intent = MENU_ID_KE_INTENT[cfg.menuOptions[num - 1].id];
     const hit = intent ? hitDariAturan(intent, cfg, business) : null;
-    if (hit) return hit;
+    if (hit) return { ...hit, eksplisit: true };
   }
 
   // 2. Balasan tombol/list interaktif WhatsApp datang sebagai id.
   const byId = cfg.menuOptions.find((o) => o.id === t);
   if (byId) {
     const hit = hitDariAturan(MENU_ID_KE_INTENT[byId.id] ?? "", cfg, business);
-    if (hit) return hit;
+    if (hit) return { ...hit, eksplisit: true };
   }
 
   // 3. Sapaan → tampilkan menu. Dicek sebelum aturan lain, tapi kini dengan

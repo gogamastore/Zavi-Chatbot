@@ -76,7 +76,15 @@ export async function handleIncoming(
   });
 
   // 2. route
-  const decision = route(text, business, botConfig);
+  //
+  // Ketersediaan AI dihitung DULU, sebelum routing. Router perlu tahu ini:
+  // pertanyaan produk hanya boleh diserahkan ke AI kalau AI memang hidup.
+  // Kalau tidak, aturan katalog tetap yang menjawab — bot yang mengirim
+  // daftar harga jauh lebih berguna daripada bot yang bilang "tunggu admin".
+  const aiBisaDipakai = entitlement.features.ai_replies && aiConfig?.enabled !== false;
+  const decision = route(text, business, botConfig, {
+    produkKeAI: aiBisaDipakai && aiConfig?.productQuestionsToAI !== false,
+  });
   let reply: string;
   let source: ReplySource;
   let intent: string | undefined;
@@ -88,7 +96,7 @@ export async function handleIncoming(
     source = decision.intent === "salam" ? "menu" : "rule";
     intent = decision.intent;
     if (decision.intent === "admin") needsHuman = true;
-  } else if (!entitlement.features.ai_replies || aiConfig?.enabled === false) {
+  } else if (!aiBisaDipakai) {
     // Langganan habis, kuota AI habis, atau AI sengaja dimatikan tenant.
     // Bot tetap menjawab — dieskalasi ke admin, bukan dibiarkan bisu.
     reply = PESAN_AI_TERKUNCI;

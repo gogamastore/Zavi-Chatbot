@@ -148,6 +148,24 @@ dikerjakan berurutan dari yang paling cepat menghasilkan:
    - Konfigurasi AI dimuat SATU KALI di halaman dan dibagi ke semua tab. Kalau
      tiap tab memuat & menyimpan sendiri, menyimpan dari satu tab akan mengirim
      konfigurasi tanpa data tab lain dan menghapusnya.
+   - **Katalog produk + impor Excel PINDAH ke tab Sumber** (dari Profil
+     Bisnis). Bukan soal tata letak: katalog adalah sumber fakta yang dibaca
+     AI, jadi tempatnya bersama sumber pengetahuan lain. Penyimpanannya tetap
+     satu — `Business.catalog` — supaya tidak pernah ada dua katalog yang
+     isinya berbeda. Profil Bisnis tetap bisa mengedit item satu per satu dan
+     kini menunjuk ke sini untuk impor massal.
+   - **Pertanyaan produk dijawab AI, bukan aturan template.** Dulu kata
+     "harga/produk/katalog/menu" dicegat aturan `harga` yang membalas dengan
+     menyiram SELURUH katalog — AI tidak pernah kebagian, padahal justru AI
+     yang bisa menjawab "ada baju hitam ukuran L?" dengan tepat. Sekarang
+     `route()` menyerahkan intent produk ke AI. Tiga penjagaan menyertainya:
+     (1) pilihan menu EKSPLISIT (menekan tombol / mengetik nomornya) tetap
+     dibalas daftar lengkap, karena itu persis yang diminta; (2) intent
+     non-produk (jam buka, alamat, pembayaran, admin) tetap dijawab aturan —
+     cepat, gratis, tidak mungkin salah; (3) kalau AI mati / terkunci / kuota
+     habis, aturan katalog otomatis mengambil alih lagi, jadi bot tidak pernah
+     berubah jadi "tunggu admin" untuk pertanyaan yang katalognya ada.
+     Bisa dimatikan lewat sakelar `productQuestionsToAI` di tab Perilaku.
 
 Sisa urutan yang disepakati (dikerjakan dari atas):
 
