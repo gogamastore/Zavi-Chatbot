@@ -4,7 +4,7 @@
 > Log rinci per sesi ada di folder [`catatan/`](./catatan/).
 > Belum pakai GitHub — penyimpanan di hard disk eksternal. **Backup folder ini secara berkala.**
 
-Terakhir diperbarui: **20 September 2026**
+Terakhir diperbarui: **21 September 2026**
 
 ---
 
@@ -90,7 +90,7 @@ D:\Zavi Wa Assistant\
 > Console. Alur lengkap daftar → trial 3 hari → terkunci → bayar → terbuka
 > otomatis sudah diverifikasi end-to-end dengan akun sungguhan.
 
-### ✅ Fitur ala Kommo (sesi 8–9)
+### ✅ Fitur ala Kommo (sesi 8–10)
 
 Daftar keinginan dari `catatan/referensi/ALUR INTEGRASI WHATSAPP KOMMO.pdf`,
 dikerjakan berurutan dari yang paling cepat menghasilkan:
@@ -121,12 +121,36 @@ dikerjakan berurutan dari yang paling cepat menghasilkan:
      kredit **tidak** memperpanjang masa aktif dan **tidak** me-reset
      pemakaian — hanya menambah saldo, lewat increment atomik.
 
+3. **Tab "Sumber" & "Tindakan" terstruktur** — SELESAI (sesi 10).
+   Halaman Pengaturan AI dibagi tiga tab: **Perilaku**, **Sumber**, **Tindakan**.
+   - **Tindakan** menggantikan peran satu kotak teks bebas: aturan bersyarat
+     `AIAction` ("KALAU x → MAKA y") ditambah satu per satu, bisa dimatikan,
+     diurutkan, dan dihapus sendiri-sendiri. Hanya yang aktif masuk prompt.
+     Dibatasi 30 aturan × 300 karakter karena isinya masuk ke setiap panggilan
+     AI — biaya token ditanggung platform. `customInstructions` tetap ada
+     sebagai "Instruksi umum" (yang berlaku selalu), tidak dibuang.
+   - **Sumber**: URL sekarang **benar-benar diambil** isinya oleh server, bukan
+     sekadar dicatat. `fetchedAt` dan `fetchError` disimpan dan ditampilkan apa
+     adanya, plus tombol **Segarkan**. Saat penyegaran gagal, isi lama sengaja
+     DIPERTAHANKAN — bot yang menjawab dari data kemarin lebih berguna daripada
+     bot yang kehilangan sumbernya karena situsnya sedang mati. Prompt AI juga
+     memberi tahu model kapan halaman itu diambil, supaya tidak menjaminkan
+     stok/promo yang mungkin sudah berubah.
+   - **PENJAGAAN SSRF** (`lib/knowledge/ambil.ts`) — ini syarat fitur ini boleh
+     ada, bukan tambahan. Server mengambil URL yang diketik pelanggan, jadi
+     tanpa penjagaan siapa pun bisa menyuruhnya membaca
+     `169.254.169.254/computeMetadata` dan mencuri token service account kita
+     — yang berarti seluruh Firestore semua tenant. Caranya: hanya http/https;
+     DNS diresolusi sendiri lalu SEMUA hasilnya wajib publik; koneksi dibuka ke
+     IP yang sudah diperiksa (bukan ke nama host lagi, menutup DNS rebinding);
+     redirect diikuti manual maksimal 3× dengan pemeriksaan ulang tiap lompatan;
+     ada batas waktu 10 detik, batas unduh 512 KB, dan pemeriksaan tipe konten.
+   - Konfigurasi AI dimuat SATU KALI di halaman dan dibagi ke semua tab. Kalau
+     tiap tab memuat & menyimpan sendiri, menyimpan dari satu tab akan mengirim
+     konfigurasi tanpa data tab lain dan menghapusnya.
+
 Sisa urutan yang disepakati (dikerjakan dari atas):
 
-3. **Tab "Sumber" & "Tindakan" terstruktur** — mengubah satu kotak teks
-   (`customInstructions`) jadi aturan yang bisa ditambah satu per satu, dan
-   membuat URL di knowledge base benar-benar diambil isinya (sekarang hanya
-   disimpan).
 4. **Katalog dari URL situs** — ini yang paling banyak cara gagalnya: situs
    ber-JavaScript, katalog yang sebenarnya ada di Instagram atau marketplace,
    dan biaya AI setiap kali memindai. Butuh diskusi desain tersendiri sebelum

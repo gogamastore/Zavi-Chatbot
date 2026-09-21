@@ -62,27 +62,26 @@ export default function PengaturanAIPage() {
     setData((d) => (d ? { ...d, aiConfig: { ...d.aiConfig, [key]: value } } : d));
   }, []);
 
-  const save = useCallback(async () => {
+  // Sengaja BUKAN useCallback: fungsi ini harus selalu melihat `data` terbaru.
+  // Menyimpannya dengan dependensi kosong akan mengirim konfigurasi basi.
+  async function save() {
+    if (!data) return;
     setSaving(true);
     setError(null);
     try {
-      // Kirim seluruh konfigurasi apa adanya dari satu state bersama, jadi
-      // menyimpan dari tab mana pun tidak pernah menghapus isi tab lain.
-      const kini = await new Promise<AIConfig | null>((r) =>
-        setData((d) => {
-          r(d?.aiConfig ?? null);
-          return d;
-        }),
-      );
-      if (!kini) return;
-      await apiFetch("/api/ai-config", { method: "PUT", body: JSON.stringify(kini) });
+      // Seluruh konfigurasi dikirim dari satu state bersama, jadi menyimpan
+      // dari tab mana pun tidak pernah menghapus isi tab lain.
+      await apiFetch("/api/ai-config", {
+        method: "PUT",
+        body: JSON.stringify(data.aiConfig),
+      });
       setSavedAt(Date.now());
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setSaving(false);
     }
-  }, []);
+  }
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
