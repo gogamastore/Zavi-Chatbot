@@ -25,7 +25,14 @@ export const env = {
    * tanda tangan webhook. Tanpa ini, webhook tidak bisa membedakan Meta dari
    * pengirim palsu.
    */
+  metaAppId: process.env.META_APP_ID ?? "",
   metaAppSecret: process.env.META_APP_SECRET ?? "",
+  /**
+   * Id konfigurasi Embedded Signup, dibuat di Meta App Dashboard →
+   * WhatsApp → Embedded Signup. Bukan App ID. Tanpa ini tombol "Hubungkan
+   * lewat Facebook" tidak punya alur untuk dibuka.
+   */
+  metaConfigId: process.env.META_CONFIG_ID ?? "",
   phoneNumberId: process.env.PHONE_NUMBER_ID ?? "",
   graphApiVersion: process.env.GRAPH_API_VERSION ?? "v21.0",
 

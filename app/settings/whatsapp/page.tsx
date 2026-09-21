@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui";
 import { TrialBanner, FeatureGate } from "@/components/Gate";
 import { apiFetch } from "@/lib/api/client";
+import HubungkanFacebook, { type StatusEmbeddedSignup } from "@/components/HubungkanFacebook";
 
 interface WAInfo {
   phoneNumberId: string;
@@ -41,19 +42,30 @@ export default function WhatsAppPage() {
 function FormWhatsApp() {
   const [wa, setWa] = useState<WAInfo | null>(null);
   const [platform, setPlatform] = useState<PlatformInfo | null>(null);
+  const [es, setEs] = useState<StatusEmbeddedSignup | null>(null);
   const [token, setToken] = useState("");
   const [saving, setSaving] = useState(false);
   const [pesan, setPesan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch<{ whatsapp: WAInfo; platform: PlatformInfo }>("/api/whatsapp")
-      .then((d) => {
-        setWa(d.whatsapp);
-        setPlatform(d.platform);
-      })
-      .catch((e) => setError((e as Error).message));
+    void muat();
   }, []);
+
+  async function muat() {
+    try {
+      const d = await apiFetch<{
+        whatsapp: WAInfo;
+        platform: PlatformInfo;
+        embeddedSignup: StatusEmbeddedSignup;
+      }>("/api/whatsapp");
+      setWa(d.whatsapp);
+      setPlatform(d.platform);
+      setEs(d.embeddedSignup);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
 
   function set<K extends keyof WAInfo>(k: K, v: WAInfo[K]) {
     setWa((p) => (p ? { ...p, [k]: v } : p));
@@ -106,9 +118,18 @@ function FormWhatsApp() {
         <div className="text-xs mt-1">
           {siapKirim
             ? "Bot akan membalas pelanggan dari nomor ini."
-            : "Bot masih hanya bisa diuji lewat Simulator. Isi Phone number ID di bawah."}
+            : "Bot masih hanya bisa diuji lewat Simulator. Hubungkan lewat Facebook, atau isi Phone number ID di bawah."}
         </div>
       </div>
+
+      {/* Cara satu tombol. Ditaruh paling atas karena inilah jalur yang
+          dirancang untuk mitra UMKM — pengisian manual di bawahnya adalah
+          jalan cadangan untuk yang sudah punya id sendiri. */}
+      {es && (
+        <div className="mb-5">
+          <HubungkanFacebook status={es} onTersambung={muat} />
+        </div>
+      )}
 
       {!platform.appSecretDiatur && (
         <div

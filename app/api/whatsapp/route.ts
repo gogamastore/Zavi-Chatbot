@@ -8,6 +8,7 @@
 // whatsappToken TIDAK PERNAH dikirim ke browser — hanya penanda terisi/tidak.
 // ---------------------------------------------------------------------------
 import { env } from "@/lib/config";
+import { hasEmbeddedSignup, kekuranganEmbeddedSignup } from "@/lib/wa/embedded-signup";
 import { getPlatformStore } from "@/lib/db/store";
 import { contextErrorResponse, getTenantContext, requireFeature } from "@/lib/tenant/context";
 
@@ -32,6 +33,16 @@ export async function GET(request: Request) {
         punyaTokenPlatform: Boolean(env.whatsappToken),
         verifyTokenDiatur: Boolean(env.verifyToken),
         appSecretDiatur: Boolean(env.metaAppSecret),
+      },
+      // Keadaan SEBENARNYA Embedded Signup. Kalau belum siap, tombolnya
+      // ditampilkan mati beserta daftar apa yang kurang — bukan tombol yang
+      // kelihatan hidup lalu gagal misterius saat ditekan.
+      embeddedSignup: {
+        siap: hasEmbeddedSignup(),
+        kurang: kekuranganEmbeddedSignup(),
+        appId: env.metaAppId,
+        configId: env.metaConfigId,
+        graphVersion: env.graphApiVersion,
       },
     });
   } catch (err) {

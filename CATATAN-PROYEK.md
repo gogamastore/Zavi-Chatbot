@@ -192,7 +192,36 @@ Sisa urutan yang disepakati (dikerjakan dari atas):
      tidak tertulis, hasil dibersihkan & dibatasi di server, dan peringatan
      "dibaca mesin — periksa dulu" selalu ikut. Diuji: halaman non-katalog
      menghasilkan 0 produk, bukan produk karangan.
-5. **Embedded Signup + "Hubungkan WhatsApp lewat login Facebook"** — persis
+5. **Embedded Signup + "Hubungkan WhatsApp lewat login Facebook"** —
+   KODENYA SELESAI (sesi 10), tinggal menunggu Meta. Tombol ada di
+   /settings/whatsapp, paling atas; pengisian manual tetap ada sebagai
+   cadangan.
+   - **Yang kurang cuma satu env: `META_CONFIG_ID`** — id konfigurasi
+     Embedded Signup yang dibuat di Meta App Dashboard → WhatsApp → Embedded
+     Signup, dan baru bisa dibuat setelah verifikasi bisnis selesai. Selama
+     kosong, tombolnya ditampilkan MATI beserta keterangan apa yang kurang —
+     bukan tombol yang kelihatan hidup lalu gagal misterius.
+   - **Klaim dari browser TIDAK dipercaya.** `waba_id` dan `phone_number_id`
+     datang dari event Embedded Signup di browser, padahal `phone_number_id`
+     adalah kunci yang dipakai webhook menentukan pesan masuk milik tenant
+     siapa. Kalau dipercaya mentah, satu mitra bisa mengklaim nomor mitra
+     lain dan membajak seluruh chat pelanggannya. Urutan yang dipakai:
+     tukar kode jadi token bisnis di server (butuh app secret) → tanya Meta
+     lewat `debug_token` WABA mana yang SEBENARNYA diizinkan token itu →
+     ambil daftar nomornya dari Meta, bukan dari browser → tolak kalau
+     nomornya sudah diklaim tenant lain (409).
+   - Langganan webhook (`POST {waba}/subscribed_apps`) dan pendaftaran nomor
+     (`POST {phone}/register`) dijalankan setelahnya, dan boleh gagal
+     sendiri-sendiri: kegagalannya dilaporkan apa adanya ke pemilik, tidak
+     menggagalkan seluruh penyambungan.
+   - Terverifikasi melawan Meta sungguhan: penukaran kode palsu dibalas
+     "Meta menolak (100): Invalid verification code format" — artinya jalur
+     dan kredensial app sudah benar, tinggal config id.
+   - ⚠️ **`GRAPH_API_VERSION` masih `v21.0`.** Dokumen Meta sekarang memakai
+     v25/v26. Versi lama biasanya dihentikan ~2 tahun setelah rilis, jadi
+     v21.0 (rilis Okt 2024) kemungkinan besar habis masa dukungannya sekitar
+     Okt 2026. Perlu dinaikkan dan diuji — menyentuhnya berarti ikut menguji
+     jalur kirim pesan, jadi jangan diubah sambil lalu. — persis
    seperti Kommo: mitra menekan satu tombol, login dengan akun Facebook
    mereka, lalu nomor WhatsApp-nya tersambung ke **App ID Meta milik Zavi**
    (model Tech Provider). Mitra tidak perlu membuat app Meta sendiri, tidak
