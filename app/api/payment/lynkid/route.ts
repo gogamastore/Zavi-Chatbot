@@ -20,7 +20,7 @@ import {
   bacaEventLynkid,
   emailUntukCocok,
   tebakPlan,
-  verifikasiTandaTanganLynkid,
+  periksaTandaTanganLynkid,
 } from "@/lib/billing/lynkid";
 import { getPlan } from "@/lib/billing/plans";
 import { hasLynkid } from "@/lib/config";
@@ -51,8 +51,11 @@ export async function POST(request: Request) {
 
   // Verifikasi tanda tangan SEBELUM memproses apa pun.
   const signature = request.headers.get("x-lynk-signature");
-  if (!verifikasiTandaTanganLynkid(payload, signature)) {
-    console.error("[lynkid] X-Lynk-Signature TIDAK SAH — ditolak.");
+  const periksa = periksaTandaTanganLynkid(payload, signature);
+  if (!periksa.sah) {
+    // Alasannya ikut dicetak: tanpa itu "kunci salah", "bentuk payload beda",
+    // dan "header tidak terkirim" menghasilkan log yang sama persis.
+    console.error(`[lynkid] X-Lynk-Signature TIDAK SAH — ditolak. ${periksa.alasan}`);
     return new Response("Invalid signature", { status: 403 });
   }
 

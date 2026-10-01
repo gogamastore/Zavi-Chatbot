@@ -70,24 +70,97 @@ function samaAman(a: string, b: string): boolean {
  * Tanpa merchant key (LYNKID_WEBHOOK_SECRET) atau tanpa header signature,
  * permintaan ditolak.
  */
-export function verifikasiTandaTanganLynkid(
+export type HasilTandaTangan = { sah: true } | { sah: false; alasan: string };
+
+/**
+ * Ringkas BENTUK payload (nama field saja, bukan nilainya) sampai dua tingkat.
+ *
+ * Dipakai di log saat verifikasi gagal: nama field cukup untuk tahu apakah
+ * Lynk.id mengirim bentuk yang kita harapkan, sedangkan nilainya tidak dicetak
+ * karena payload sungguhan memuat data pembeli.
+ */
+function ringkasBentuk(payload: unknown, tingkat = 2): string {
+  const o = obj(payload);
+  if (!o) return typeof payload;
+  return Object.keys(o)
+    .slice(0, 12)
+    .map((k) => (tingkat > 1 && obj(o[k]) ? `${k}{${ringkasBentuk(o[k], tingkat - 1)}}` : k))
+    .join(",");
+}
+
+/**
+ * Verifikasi tanda tangan webhook Lynk.id, DENGAN alasan kalau gagal.
+ *
+ * Rumus Lynk.id: SHA256(grandTotal + refId + message_id + merchantKey).
+ * `grandTotal` dipakai APA ADANYA dari payload (sama seperti kode contoh
+ * Lynk.id yang merangkai `amount + ref_id + message_id + secretKey`).
+ *
+ * Kenapa mengembalikan alasan, bukan cuma false: tiga kegagalan yang sangat
+ * berbeda sebelumnya menghasilkan log yang IDENTIK — merchant key salah,
+ * payload tidak punya field yang ditandatangani, dan header tidak terkirim.
+ * Perbaikan ketiganya tidak sama, jadi log yang tidak membedakannya memaksa
+ * pemiliknya menebak. Alasan ini TIDAK PERNAH memuat secret.
+ */
+export function periksaTandaTanganLynkid(
   payload: unknown,
   signature: string | null,
-): boolean {
+): HasilTandaTangan {
   const secret = env.lynkidWebhookSecret;
-  if (!secret || !signature) return false;
+  if (!secret) {
+    return { sah: false, alasan: "LYNKID_WEBHOOK_SECRET kosong di server." };
+  }
+  if (!signature) {
+    return {
+      sah: false,
+      alasan: `header X-Lynk-Signature tidak ada. Bentuk payload: ${ringkasBentuk(payload)}`,
+    };
+  }
 
   const md = messageDataDari(payload);
   const grandTotal = obj(md?.totals)?.grandTotal;
   const refId = asString(md?.refId);
   const messageId = asString(dataDari(payload)?.message_id);
-  if (grandTotal === undefined || grandTotal === null || !refId || !messageId) {
-    return false;
+
+  const kurang: string[] = [];
+  if (grandTotal === undefined || grandTotal === null) {
+    kurang.push("data.message_data.totals.grandTotal");
+  }
+  if (!refId) kurang.push("data.message_data.refId");
+  if (!messageId) kurang.push("data.message_id");
+  if (kurang.length) {
+    return {
+      sah: false,
+      alasan:
+        `payload tidak punya field yang dipakai menandatangani: ${kurang.join(", ")}. ` +
+        `Bentuk payload sebenarnya: ${ringkasBentuk(payload)}`,
+    };
   }
 
-  const signatureString = `${grandTotal}${refId}${messageId}${secret}`;
-  const calc = createHash("sha256").update(signatureString).digest("hex");
-  return samaAman(calc, signature.trim().toLowerCase());
+  const calc = createHash("sha256")
+    .update(`${grandTotal}${refId}${messageId}${secret}`)
+    .digest("hex");
+  const diterima = signature.trim().toLowerCase();
+  if (!samaAman(calc, diterima)) {
+    // Hanya AWALAN hash yang dicetak: cukup untuk membandingkan, tidak cukup
+    // untuk dipakai memalsukan apa pun.
+    return {
+      sah: false,
+      alasan:
+        `tanda tangan tidak cocok. Dihitung ${calc.slice(0, 10)}…, diterima ${diterima.slice(0, 10)}… ` +
+        `dari grandTotal=${JSON.stringify(grandTotal)} refId=${refId} message_id=${messageId}. ` +
+        `Kalau ketiga nilai itu memang benar, berarti merchant key di ` +
+        `LYNKID_WEBHOOK_SECRET berbeda dari yang dipakai Lynk.id.`,
+    };
+  }
+  return { sah: true };
+}
+
+/** Pintasan boolean untuk pemanggil yang tidak butuh alasannya. */
+export function verifikasiTandaTanganLynkid(
+  payload: unknown,
+  signature: string | null,
+): boolean {
+  return periksaTandaTanganLynkid(payload, signature).sah;
 }
 
 // --- Pembacaan payload -----------------------------------------------------
