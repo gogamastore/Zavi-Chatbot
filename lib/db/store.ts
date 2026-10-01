@@ -98,6 +98,12 @@ export interface PlatformStore {
   getTenantByUid(uid: string): Promise<Tenant | null>;
   /** Dipakai webhook WhatsApp: cari tenant pemilik nomor yang menerima pesan. */
   getTenantByPhoneNumberId(phoneNumberId: string): Promise<Tenant | null>;
+  /**
+   * Cari tenant dari email pemilik (case-insensitive). Dipakai webhook
+   * pembayaran Lynk.id mencocokkan pembeli ke akun saat tidak ada referensi
+   * order. Kembalikan null kalau tidak ada.
+   */
+  getTenantByEmail(email: string): Promise<Tenant | null>;
   createTenant(tenant: Tenant): Promise<Tenant>;
   updateTenant(tenantId: string, patch: Partial<Tenant>): Promise<Tenant | null>;
   /**
@@ -391,6 +397,13 @@ class MemoryPlatformStore implements PlatformStore {
     }
     return null;
   }
+  async getTenantByEmail(email: string) {
+    const e = email.trim().toLowerCase();
+    for (const t of memoryRoot().tenantMeta.values()) {
+      if ((t.ownerEmail ?? "").toLowerCase() === e) return t;
+    }
+    return null;
+  }
   async createTenant(tenant: Tenant) {
     const root = memoryRoot();
     root.tenantMeta.set(tenant.id, tenant);
@@ -607,6 +620,21 @@ class FirestorePlatformStore implements PlatformStore {
       .limit(1)
       .get();
     return snap.empty ? null : (snap.docs[0].data() as Tenant);
+  }
+  async getTenantByEmail(email: string) {
+    const raw = email.trim();
+    const d = await db();
+    // Coba cocokkan apa adanya lalu versi huruf kecil — email bisa tersimpan
+    // dengan kapitalisasi berbeda dari yang dikirim Lynk.id.
+    for (const kandidat of [raw, raw.toLowerCase()]) {
+      const snap = await d
+        .collection("tenants")
+        .where("ownerEmail", "==", kandidat)
+        .limit(1)
+        .get();
+      if (!snap.empty) return snap.docs[0].data() as Tenant;
+    }
+    return null;
   }
   async createTenant(tenant: Tenant) {
     const d = await db();

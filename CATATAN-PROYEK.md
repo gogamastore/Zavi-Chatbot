@@ -4,7 +4,7 @@
 > Log rinci per sesi ada di folder [`catatan/`](./catatan/).
 > Belum pakai GitHub — penyimpanan di hard disk eksternal. **Backup folder ini secara berkala.**
 
-Terakhir diperbarui: **21 September 2026**
+Terakhir diperbarui: **29 September 2026**
 
 ---
 
@@ -24,7 +24,7 @@ Pemilik: **@GogamaLab**.
 | Topik | Keputusan | Alasan |
 |---|---|---|
 | **Model bisnis** | **SaaS multi-tenant untuk UMKM** — klien daftar sendiri, trial 3 hari, lalu langganan bulanan | Zavi jadi produk, bukan proyek per-klien |
-| Pembayaran | **Midtrans Snap** (mulai dari Sandbox) | Sandbox jalan tanpa dokumen badan usaha; produksi tinggal ganti key |
+| Pembayaran | **Lynk.id (webhook)** — AKTIF. **Midtrans dinonaktifkan sementara** lewat sakelar `PAYMENT_PROVIDER` | Lynk.id lebih mudah untuk pemilik: cukup buat produk + link, tanpa integrasi API. Kode Midtrans tetap ada, bisa dihidupkan lagi dengan `PAYMENT_PROVIDER=midtrans` |
 | Letak logika pembayaran | **Next.js**, bukan Firebase Functions | Satu sumber kebenaran untuk status langganan. Blaze sudah aktif, tapi Functions/Scheduler dipakai sebagai **pemicu** rekonsiliasi, bukan tempat logikanya |
 | Integrasi Meta | **Jadilah Mitra (Tech Provider)** — Embedded Signup menunggu verifikasi bisnis | Satu-satunya jalur realistis: klien UMKM tidak mungkin membuat app Meta sendiri |
 | Login klien | **Firebase Auth: email/password + Google** | Gratis, langsung dipakai ulang app Flutter lewat `firebase_auth` |
@@ -52,9 +52,12 @@ D:\Zavi Wa Assistant\
 │   │   ├── 2026-09-19-sesi-4-auth-multitenant.md
 │   │   ├── 2026-09-19-sesi-5-midtrans.md
 │   │   ├── 2026-09-19-sesi-6-blaze-rekonsiliasi.md
-│   │   └── 2026-09-19-sesi-7-pengamanan-webhook.md
+│   │   ├── 2026-09-19-sesi-7-pengamanan-webhook.md
+│   │   └── 2026-09-29-sesi-11-lynkid.md            # ganti pembayaran ke Lynk.id
 │   ├── app\  lib\  components\                      # kode
+│   ├── public\ (logo.svg, ikon PWA) + app\icon.svg  # aset logo Zavi terpasang
 │   └── zavi-assistant-firebase-adminsdk-*.json      # service account (RAHASIA, gitignored)
+├── brand\                                            # kit logo master (ikon, favicon, wordmark)
 └── flutter\                                         # (BELUM) app Flutter — tahap berikutnya
 ```
 
@@ -306,15 +309,43 @@ manual, dan ringkasan pendapatan. Pendapatan sengaja belum ditampilkan karena
 angkanya harus diambil dari Midtrans — angka yang dihitung ulang sendiri akan
 menyesatkan.
 
+### ✅ Logo & branding
+
+Logo resmi **Zavi Assistant**: kotak putih bercincin hijau + gelembung chat +
+huruf "Z". Master `public/logo.svg` (vektor tanpa teks → tajam di semua ukuran).
+`npm run icons` (`scripts/generate-icons.mjs`) membuat favicon.ico, `app/icon.svg`,
+apple-icon, ikon PWA 192/512, dan kit di folder induk `../brand`. Terpasang di
+favicon, sidebar, dan manifest PWA (`app/manifest.ts`, warna tema hijau).
+
+### ✅ Pembayaran Lynk.id, Midtrans dinonaktifkan (sesi 11)
+
+Detail lengkap: [`catatan/2026-09-29-sesi-11-lynkid.md`](./catatan/2026-09-29-sesi-11-lynkid.md).
+
+- **Sakelar `PAYMENT_PROVIDER`** (default `lynkid`). Midtrans dimatikan tanpa
+  dihapus — `hasMidtrans()` false kecuali provider `midtrans`, jadi rute Midtrans
+  (create / notification / reconcile) balas 503. Balik dengan `PAYMENT_PROVIDER=midtrans`.
+- **Aktivasi tetap satu pintu** — `activate.ts` direfactor jadi inti
+  `terapkanKeadaanPembayaran()` yang dipakai bersama Midtrans & Lynk.id. Lunas →
+  `subscription active`, berlaku **30 hari dari tanggal mulai**.
+- **Webhook** `/api/payment/lynkid`: verifikasi `X-Lynk-Signature`
+  (`SHA256(grandTotal + refId + message_id + merchantKey)`; `LYNKID_WEBHOOK_SECRET`
+  = merchant key Lynk.id), cocokkan ke tenant lewat email pembeli (+ email dari
+  pertanyaan custom), tebak paket dari `totals.totalPrice` — bukan `grandTotal`
+  yang sudah dipotong biaya. Idempoten.
+- Terverifikasi: build TypeScript lolos + 11 unit test algoritma + smoke test
+  (403/200/503).
+
 ### ⏳ Belum / langkah berikutnya
-1. **Daftarkan Payment Notification URL** di Midtrans Dashboard →
-   `https://<domain>/api/payment/notification`. **Penghalang nomor satu.**
-   Lalu pasang penjadwal untuk `/api/payment/reconcile` (lihat catatan sesi 6).
+1. **Go-live Lynk.id** — buat 2 produk/link checkout di Lynk.id (isi
+   `LYNKID_LINK_BASIC/PRO`), daftarkan URL webhook `https://<domain>/api/payment/lynkid`,
+   lalu isi merchant key ke `LYNKID_WEBHOOK_SECRET`. **Penghalang nomor satu.**
+2. **Keputusan UI langganan** — tambahkan instruksi "isi Email akun Zavi" saat
+   checkout, atau cukup andalkan email yang sama. (Menunggu jawaban pemilik.)
+3. **Beli kredit AI lewat Lynk.id** — sementara dimatikan (dulu via Midtrans).
 4. **Hubungkan WhatsApp asli** — UI sambungan sudah ada di /settings/whatsapp;
    tinggal isi App Secret + nomor tes dari Meta.
-5. **Amankan webhook sebelum dipakai klien** — lihat bagian 8.
-6. **Buat proyek Flutter** (`../flutter/`) — panduan di [`FLUTTER_MIRROR.md`](./FLUTTER_MIRROR.md).
-7. (Nanti) Setup GitHub + push repo.
+5. **Buat proyek Flutter** (`../flutter/`) — panduan di [`FLUTTER_MIRROR.md`](./FLUTTER_MIRROR.md).
+6. (Nanti) Setup GitHub + push repo.
 
 ## 5. Cara menjalankan web
 
@@ -386,6 +417,10 @@ Belum rusak, tapi akan menggigit begitu nomor WhatsApp asli tersambung:
   Kalau semua endpoint tiba-tiba 500, curigai kredensial Firebase dulu.
 - Menjalankan `npm run build` saat `npm run dev` masih hidup → gagal type-check
   karena `.next/dev/types` sedang ditulis. Hentikan dev dulu sebelum build.
+- **`npm run dev` kadang segfault (exit 139)** di mesin ini saat request pertama
+  memicu kompilasi rute on-demand — masalah stabilitas Turbopack/Node, bukan dari
+  kode. Kalau perlu verifikasi andal, pakai `npm run build` + unit test, atau
+  jalankan `npm run build && npm start`. Ulangi `npm run dev` kalau crash.
 - **Key sandbox Midtrans TIDAK lagi berawalan `SB-`.** Key sandbox dan produksi
   kini sama bentuknya (`Mid-server-…`) dan tidak bisa dibedakan dari teksnya.
   Karena itu `MIDTRANS_IS_PRODUCTION` wajib diisi eksplisit — jangan pernah

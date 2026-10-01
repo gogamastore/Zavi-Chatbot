@@ -15,7 +15,7 @@
 import type { PlatformStore } from "@/lib/db/store";
 import type { Payment, PaymentStatus } from "@/lib/types";
 import { getPlan } from "./plans";
-import { tafsirkanStatus, type MidtransNotification } from "./midtrans";
+import { tafsirkanStatus, type HasilPembayaran, type MidtransNotification } from "./midtrans";
 
 const HARI = 86_400_000;
 export const PERIODE_HARI = 30;
@@ -31,23 +31,54 @@ export interface HasilAktivasi {
 }
 
 /**
+ * Satu keadaan pembayaran yang sudah dinormalkan, lepas dari penyedia mana pun.
+ * Midtrans dan Lynk.id sama-sama menerjemahkan payload mereka ke bentuk ini,
+ * lalu memanggil `terapkanKeadaanPembayaran` — supaya perhitungan masa aktif
+ * hanya ada di SATU tempat dan tidak pernah menyimpang antar penyedia.
+ */
+export interface KeadaanPembayaran {
+  hasil: HasilPembayaran;
+  /** Status mentah dari penyedia, untuk audit (opsional). */
+  providerStatus?: string;
+  /** Cara bayar (qris, bank_transfer, …), kalau penyedia mengirimkannya. */
+  paymentType?: string;
+}
+
+/**
  * Terapkan satu keadaan transaksi Midtrans ke pembayaran + langganan.
- *
- * Idempoten: aman dipanggil berkali-kali untuk order yang sama. Aktivasi hanya
- * terjadi pada transisi pertama menuju "paid".
+ * Pembungkus tipis di atas terapkanKeadaanPembayaran untuk jalur Midtrans.
  */
 export async function terapkanStatusPembayaran(
   platform: PlatformStore,
   payment: Payment,
   notif: MidtransNotification,
 ): Promise<HasilAktivasi> {
-  const hasil = tafsirkanStatus(notif);
+  return terapkanKeadaanPembayaran(platform, payment, {
+    hasil: tafsirkanStatus(notif),
+    providerStatus: notif.transaction_status,
+    paymentType: notif.payment_type,
+  });
+}
+
+/**
+ * Inti aktivasi — SATU-SATUNYA tempat langganan berubah jadi "active" dan kredit
+ * ditambahkan, lepas dari penyedia pembayaran.
+ *
+ * Idempoten: aman dipanggil berkali-kali untuk order yang sama. Aktivasi hanya
+ * terjadi pada transisi pertama menuju "paid".
+ */
+export async function terapkanKeadaanPembayaran(
+  platform: PlatformStore,
+  payment: Payment,
+  keadaan: KeadaanPembayaran,
+): Promise<HasilAktivasi> {
+  const hasil = keadaan.hasil;
   const sudahLunas = payment.status === "paid";
 
   await platform.updatePayment(payment.orderId, {
     status: hasil as PaymentStatus,
-    midtransStatus: notif.transaction_status,
-    paymentType: notif.payment_type,
+    providerStatus: keadaan.providerStatus,
+    paymentType: keadaan.paymentType,
     paidAt: hasil === "paid" ? (payment.paidAt ?? Date.now()) : payment.paidAt,
   });
 

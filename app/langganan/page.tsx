@@ -1,6 +1,8 @@
 "use client";
 
-// Halaman langganan: status sekarang + pilihan paket + pembayaran Midtrans Snap.
+// Halaman langganan: status sekarang + pilihan paket + pembayaran.
+// Penyedia aktif ditentukan NEXT_PUBLIC_PAYMENT_PROVIDER ("lynkid" | "midtrans").
+// Default "lynkid" — Midtrans dinonaktifkan sementara (lihat lib/config.ts).
 
 import Script from "next/script";
 import { useState } from "react";
@@ -29,6 +31,9 @@ declare global {
   }
 }
 
+const PROVIDER = (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER ?? "lynkid").toLowerCase();
+const PAKAI_LYNKID = PROVIDER !== "midtrans";
+
 const CLIENT_KEY = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY ?? "";
 // Lingkungan dinyatakan eksplisit, tidak ditebak dari bentuk key — key sandbox
 // dan produksi Midtrans kini identik bentuknya. Lihat lib/billing/midtrans.ts.
@@ -41,25 +46,49 @@ const SNAP_SRC = PRODUKSI
 export default function LanggananPage() {
   const { loading, entitlement, subscription, plan, plans, isDemo, isOwner, refresh } =
     useSubscription();
-  // Satu penanda "sedang diproses" untuk paket maupun kredit — id-nya cukup
-  // untuk tahu tombol mana yang harus berubah jadi "Memproses…".
   const [proses, setProses] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function beliPaket(plan: Plan) {
-    return bayar(plan.id, { planId: plan.id }, "Semua fitur sudah terbuka 🎉");
+  function beliPaket(p: Plan) {
+    return PAKAI_LYNKID
+      ? bayarLynkid(p)
+      : bayarMidtrans(p.id, { planId: p.id }, "Semua fitur sudah terbuka 🎉");
   }
 
   function beliKredit(pack: CreditPack) {
-    return bayar(
+    return bayarMidtrans(
       pack.id,
       { kind: "credits", packId: pack.id },
       `${pack.credits.toLocaleString("id-ID")} kredit AI sudah masuk ke saldo Anda 🎉`,
     );
   }
 
-  async function bayar(id: string, body: object, pesanSukses: string) {
+  // --- Alur Lynk.id: buka link checkout, lalu tunggu konfirmasi webhook -----
+  async function bayarLynkid(p: Plan) {
+    setProses(p.id);
+    setError(null);
+    setPesan(null);
+    try {
+      const r = await apiFetch<{ orderId: string; checkoutUrl: string }>(
+        "/api/payment/lynkid/create",
+        { method: "POST", body: JSON.stringify({ planId: p.id }) },
+      );
+      window.open(r.checkoutUrl, "_blank", "noopener,noreferrer");
+      setPesan(
+        "Halaman pembayaran Lynk.id dibuka di tab baru. Selesaikan pembayaran di sana — " +
+          "langganan aktif otomatis dan status di sini akan diperbarui.",
+      );
+      // Webhook bisa tiba beberapa menit setelah bayar → tunggu lebih sabar.
+      tungguKonfirmasi(r.orderId, "Semua fitur sudah terbuka 🎉", 30);
+    } catch (err) {
+      setError((err as Error).message);
+      setProses(null);
+    }
+  }
+
+  // --- Alur Midtrans (dipakai saat PAYMENT_PROVIDER=midtrans) ---------------
+  async function bayarMidtrans(id: string, body: object, pesanSukses: string) {
     setProses(id);
     setError(null);
     setPesan(null);
@@ -68,14 +97,10 @@ export default function LanggananPage() {
         "/api/payment/create",
         { method: "POST", body: JSON.stringify(body) },
       );
-
       if (!window.snap) {
-        // Skrip Snap gagal dimuat (pemblokir iklan / jaringan) — pakai halaman
-        // pembayaran Midtrans sebagai cadangan agar transaksi tetap bisa jalan.
         window.location.href = r.redirectUrl;
         return;
       }
-
       window.snap.pay(r.snapToken, {
         onSuccess: () => tungguKonfirmasi(r.orderId, pesanSukses),
         onPending: () => {
@@ -98,12 +123,12 @@ export default function LanggananPage() {
   }
 
   /**
-   * Notifikasi Midtrans tiba server-to-server, biasanya beberapa detik setelah
-   * popup tertutup. Jadi kita tanya berkala sebentar, bukan langsung menyerah.
+   * Konfirmasi tiba server-to-server (webhook), bisa beberapa detik–menit
+   * setelah bayar. Jadi kita tanya berkala sebentar, bukan langsung menyerah.
    */
-  async function tungguKonfirmasi(orderId: string, pesanSukses: string) {
-    setPesan("Pembayaran diterima, sedang dikonfirmasi…");
-    for (let i = 0; i < 10; i++) {
+  async function tungguKonfirmasi(orderId: string, pesanSukses: string, percobaan = 10) {
+    setPesan("Menunggu konfirmasi pembayaran…");
+    for (let i = 0; i < percobaan; i++) {
       await new Promise((r) => setTimeout(r, 2000));
       try {
         const s = await apiFetch<{ payment: Payment }>(
@@ -121,18 +146,28 @@ export default function LanggananPage() {
     }
     await refresh();
     setPesan(
-      "Konfirmasi belum masuk. Kalau dana sudah terpotong, pesanan Anda diproses otomatis dalam beberapa menit.",
+      "Konfirmasi belum masuk. Kalau dana sudah terpotong, langganan Anda diaktifkan otomatis dalam beberapa menit.",
     );
     setProses(null);
   }
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
-      <Script src={SNAP_SRC} data-client-key={CLIENT_KEY} strategy="afterInteractive" />
+      {!PAKAI_LYNKID && (
+        <Script src={SNAP_SRC} data-client-key={CLIENT_KEY} strategy="afterInteractive" />
+      )}
 
       <PageHeader title="Langganan" subtitle="Status layanan Zavi untuk bisnis Anda." />
 
-      {PRODUKSI ? (
+      {PAKAI_LYNKID ? (
+        <div
+          className="rounded-lg px-4 py-2.5 text-sm mb-5 border"
+          style={{ background: "#f0fdf4", color: "#166534", borderColor: "#bbf7d0" }}
+        >
+          💳 Pembayaran via <b>Lynk.id</b>. Setelah membayar, langganan aktif otomatis
+          begitu konfirmasi diterima.
+        </div>
+      ) : PRODUKSI ? (
         <div
           className="rounded-lg px-4 py-2.5 text-sm mb-5 border"
           style={{ background: "#fef2f2", color: "#991b1b", borderColor: "#fecaca" }}
@@ -243,84 +278,93 @@ export default function LanggananPage() {
               </p>
             </div>
           ) : (
-          <>
-          <h2 className="font-semibold text-lg mb-3">Pilih paket</h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {plans.map((p) => (
-              <div key={p.id} className="card p-5 flex flex-col">
-                <div className="font-semibold text-lg">{p.name}</div>
-                <div className="text-2xl font-bold mt-1">
-                  {formatIdr(p.priceIdr)}
-                  <span className="text-sm font-normal text-[var(--muted)]"> / bulan</span>
-                </div>
-                <ul className="mt-4 space-y-1.5 text-sm flex-1">
-                  {p.highlights.map((h) => (
-                    <li key={h} className="flex gap-2">
-                      <span style={{ color: "var(--wa-green-dark)" }}>✓</span>
-                      <span>{h}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className="btn btn-primary w-full mt-5"
-                  onClick={() => beliPaket(p)}
-                  disabled={proses !== null || isDemo}
-                  title={isDemo ? "Mode demo tidak bisa membayar" : undefined}
-                >
-                  {proses === p.id ? "Memproses…" : `Berlangganan ${p.name}`}
-                </button>
+            <>
+              <h2 className="font-semibold text-lg mb-3">Pilih paket</h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {plans.map((p) => (
+                  <div key={p.id} className="card p-5 flex flex-col">
+                    <div className="font-semibold text-lg">{p.name}</div>
+                    <div className="text-2xl font-bold mt-1">
+                      {formatIdr(p.priceIdr)}
+                      <span className="text-sm font-normal text-[var(--muted)]"> / bulan</span>
+                    </div>
+                    <ul className="mt-4 space-y-1.5 text-sm flex-1">
+                      {p.highlights.map((h) => (
+                        <li key={h} className="flex gap-2">
+                          <span style={{ color: "var(--wa-green-dark)" }}>✓</span>
+                          <span>{h}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      className="btn btn-primary w-full mt-5"
+                      onClick={() => beliPaket(p)}
+                      disabled={proses !== null || isDemo}
+                      title={isDemo ? "Mode demo tidak bisa membayar" : undefined}
+                    >
+                      {proses === p.id ? "Memproses…" : `Berlangganan ${p.name}`}
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <h2 className="font-semibold text-lg mb-1 mt-8">Beli kredit AI</h2>
-          <p className="text-sm text-[var(--muted)] mb-3">
-            Kuota bulanan hampir habis di tengah bulan? Tambah kredit supaya bot
-            tetap menjawab. Kredit dipakai setelah kuota paket habis, dan{" "}
-            <b>tidak hangus</b> saat bulan berganti.
-          </p>
-          <div className="grid sm:grid-cols-3 gap-4">
-            {CREDIT_PACKS.map((k) => (
-              <div key={k.id} className="card p-5 flex flex-col">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="font-semibold">{k.name}</div>
-                  {k.badge && <span className="badge src-rule">{k.badge}</span>}
-                </div>
-                <div className="text-xl font-bold mt-1">{formatIdr(k.priceIdr)}</div>
-                <div className="text-xs text-[var(--muted)] mt-1">
-                  {k.credits.toLocaleString("id-ID")} balasan AI ·{" "}
-                  {formatIdr(hargaPerKredit(k))}/balasan
-                </div>
-                <button
-                  className="btn w-full mt-4"
-                  onClick={() => beliKredit(k)}
-                  disabled={proses !== null || isDemo || Boolean(entitlement?.locked)}
-                  title={
-                    isDemo
-                      ? "Mode demo tidak bisa membayar"
-                      : entitlement?.locked
-                        ? "Aktifkan langganan dulu — kredit hanya bisa dipakai saat langganan aktif"
-                        : undefined
-                  }
-                >
-                  {proses === k.id ? "Memproses…" : "Beli kredit"}
-                </button>
+              <h2 className="font-semibold text-lg mb-1 mt-8">Beli kredit AI</h2>
+              <p className="text-sm text-[var(--muted)] mb-3">
+                Kuota bulanan hampir habis di tengah bulan? Tambah kredit supaya bot
+                tetap menjawab. Kredit dipakai setelah kuota paket habis, dan{" "}
+                <b>tidak hangus</b> saat bulan berganti.
+              </p>
+              {PAKAI_LYNKID && (
+                <p className="text-xs text-[var(--muted)] mb-3">
+                  ℹ️ Pembelian kredit AI untuk sementara belum tersedia lewat Lynk.id.
+                </p>
+              )}
+              <div className="grid sm:grid-cols-3 gap-4">
+                {CREDIT_PACKS.map((k) => (
+                  <div key={k.id} className="card p-5 flex flex-col">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="font-semibold">{k.name}</div>
+                      {k.badge && <span className="badge src-rule">{k.badge}</span>}
+                    </div>
+                    <div className="text-xl font-bold mt-1">{formatIdr(k.priceIdr)}</div>
+                    <div className="text-xs text-[var(--muted)] mt-1">
+                      {k.credits.toLocaleString("id-ID")} balasan AI ·{" "}
+                      {formatIdr(hargaPerKredit(k))}/balasan
+                    </div>
+                    <button
+                      className="btn w-full mt-4"
+                      onClick={() => beliKredit(k)}
+                      disabled={
+                        proses !== null || isDemo || PAKAI_LYNKID || Boolean(entitlement?.locked)
+                      }
+                      title={
+                        PAKAI_LYNKID
+                          ? "Pembelian kredit sementara hanya lewat Midtrans"
+                          : isDemo
+                            ? "Mode demo tidak bisa membayar"
+                            : entitlement?.locked
+                              ? "Aktifkan langganan dulu — kredit hanya bisa dipakai saat langganan aktif"
+                              : undefined
+                      }
+                    >
+                      {proses === k.id ? "Memproses…" : "Beli kredit"}
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          {entitlement?.locked && (
-            <p className="text-xs text-[var(--muted)] mt-3">
-              Kredit baru bisa dibeli setelah langganan aktif — supaya Anda tidak
-              membayar sesuatu yang belum bisa dipakai.
-            </p>
-          )}
+              {entitlement?.locked && !PAKAI_LYNKID && (
+                <p className="text-xs text-[var(--muted)] mt-3">
+                  Kredit baru bisa dibeli setelah langganan aktif — supaya Anda tidak
+                  membayar sesuatu yang belum bisa dipakai.
+                </p>
+              )}
 
-          <p className="text-xs text-[var(--muted)] mt-6">
-            Pembayaran diproses Midtrans (QRIS, Virtual Account, e-wallet, kartu).
-            Fitur dan kredit masuk otomatis begitu pembayaran dikonfirmasi — tidak
-            perlu menunggu admin.
-          </p>
-          </>
+              <p className="text-xs text-[var(--muted)] mt-6">
+                {PAKAI_LYNKID
+                  ? "Pembayaran diproses Lynk.id. Fitur terbuka otomatis begitu pembayaran dikonfirmasi — tidak perlu menunggu admin."
+                  : "Pembayaran diproses Midtrans (QRIS, Virtual Account, e-wallet, kartu). Fitur dan kredit masuk otomatis begitu pembayaran dikonfirmasi — tidak perlu menunggu admin."}
+              </p>
+            </>
           )}
         </>
       )}

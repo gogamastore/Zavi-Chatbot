@@ -315,11 +315,19 @@ export type PaymentStatus = "pending" | "paid" | "failed" | "expired" | "refunde
 /** Yang dibeli: perpanjangan langganan, atau kredit AI tambahan. */
 export type PaymentKind = "subscription" | "credits";
 
+/** Penyedia pembayaran yang memproses transaksi. */
+export type PaymentProvider = "midtrans" | "lynkid";
+
 /** Satu percobaan pembayaran. Firestore: "payments/{orderId}". */
 export interface Payment {
-  /** order_id yang dikirim ke Midtrans; juga id dokumen. */
+  /** order_id/id transaksi; juga id dokumen. */
   orderId: string;
   tenantId: string;
+  /**
+   * Penyedia yang memproses transaksi ini. Kosong = data lama (Midtrans),
+   * supaya riwayat sebelum Lynk.id ada tetap terbaca benar.
+   */
+  provider?: PaymentProvider;
   /**
    * Jenis pembelian. Pembayaran lama tidak punya field ini — kosong berarti
    * "subscription", jadi riwayat sebelum fitur kredit ada tetap terbaca benar.
@@ -339,9 +347,13 @@ export interface Payment {
   /** Token Snap dari Midtrans, dipakai frontend membuka popup bayar. */
   snapToken?: string;
   snapRedirectUrl?: string;
+  /** URL checkout Lynk.id (pengganti snapToken pada alur Lynk.id). */
+  checkoutUrl?: string;
   /** Cara bayar yang dipakai pelanggan (qris, bank_transfer, gopay, …). */
   paymentType?: string;
-  /** transaction_status mentah dari Midtrans, untuk audit. */
+  /** Status mentah dari penyedia (transaction_status Midtrans / status Lynk.id), untuk audit. */
+  providerStatus?: string;
+  /** @deprecated dipakai data lama; penulisan baru memakai providerStatus. */
   midtransStatus?: string;
   paidAt?: number;
   createdAt: number;

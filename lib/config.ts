@@ -17,6 +17,25 @@ export const env = {
   /** Paksa penyedia tertentu: "anthropic" | "gemini". Kosong = deteksi otomatis. */
   aiProvider: process.env.ZAVI_AI_PROVIDER ?? "",
 
+  // --- Pembayaran ---
+  /**
+   * Penyedia pembayaran aktif: "lynkid" | "midtrans" | "none".
+   * Default "lynkid" — Midtrans sengaja DINONAKTIFKAN sementara. Untuk
+   * mengaktifkan Midtrans lagi cukup set PAYMENT_PROVIDER=midtrans (kodenya
+   * tidak dihapus, hanya dimatikan lewat sakelar ini).
+   */
+  paymentProvider: (process.env.PAYMENT_PROVIDER ?? "lynkid").trim().toLowerCase(),
+  /**
+   * MERCHANT KEY Lynk.id, dipakai memverifikasi tanda tangan X-Lynk-Signature
+   * setiap webhook (SHA256 grandTotal+refId+message_id+merchantKey). Muncul di
+   * dashboard Lynk.id setelah URL webhook disimpan. Tanpa ini, webhook menolak
+   * semua permintaan. RAHASIA — jangan pernah dibagikan.
+   */
+  lynkidWebhookSecret: process.env.LYNKID_WEBHOOK_SECRET ?? "",
+  /** Link checkout Lynk.id per paket (dibuat di dashboard Lynk.id). */
+  lynkidLinkBasic: process.env.LYNKID_LINK_BASIC ?? "",
+  lynkidLinkPro: process.env.LYNKID_LINK_PRO ?? "",
+
   // --- WhatsApp Cloud API (Meta) ---
   whatsappToken: process.env.WHATSAPP_TOKEN ?? "",
   verifyToken: process.env.VERIFY_TOKEN ?? "zavi-verify-token",
@@ -99,6 +118,25 @@ export function activeAIModel(): string {
 /** True when the WhatsApp Cloud API is configured to send real messages. */
 export function hasWhatsApp(): boolean {
   return Boolean(env.whatsappToken && env.phoneNumberId);
+}
+
+/** Penyedia pembayaran yang aktif saat ini. */
+export function paymentProvider(): "lynkid" | "midtrans" | "none" {
+  if (env.paymentProvider === "midtrans") return "midtrans";
+  if (env.paymentProvider === "none") return "none";
+  return "lynkid";
+}
+
+/** True kalau Lynk.id aktif dan rahasia webhook-nya sudah diisi. */
+export function hasLynkid(): boolean {
+  return paymentProvider() === "lynkid" && Boolean(env.lynkidWebhookSecret);
+}
+
+/** Link checkout Lynk.id untuk sebuah paket, atau "" kalau belum diatur. */
+export function lynkidLinkFor(planId: string): string {
+  if (planId === "basic") return env.lynkidLinkBasic;
+  if (planId === "pro") return env.lynkidLinkPro;
+  return "";
 }
 
 /** True when Firestore credentials are present. */

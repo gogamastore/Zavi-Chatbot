@@ -10,6 +10,7 @@
 // semua fitur secara cuma-cuma.
 // ---------------------------------------------------------------------------
 import { createHash } from "node:crypto";
+import { paymentProvider } from "@/lib/config";
 
 export const midtrans = {
   merchantId: process.env.MIDTRANS_MERCHANT_ID ?? "",
@@ -34,6 +35,10 @@ export function isProduction(): boolean {
 }
 
 export function hasMidtrans(): boolean {
+  // Sakelar penyedia: kalau PAYMENT_PROVIDER bukan "midtrans", Midtrans dianggap
+  // nonaktif walau key-nya masih ada. Ini yang mematikan seluruh rute Midtrans
+  // (create / notification / reconcile) tanpa menghapus kodenya.
+  if (paymentProvider() !== "midtrans") return false;
   return Boolean(midtrans.serverKey && midtrans.clientKey);
 }
 

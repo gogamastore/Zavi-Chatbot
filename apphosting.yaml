@@ -90,7 +90,7 @@ env:
   # WhatsApp Cloud API
   # ---------------------------------------------------------------------------
   - variable: GRAPH_API_VERSION
-    value: v21.0
+    value: v25.0
     availability: [RUNTIME]
   - variable: PHONE_NUMBER_ID
     value: "1318291108036694"
@@ -112,6 +112,10 @@ env:
   - variable: META_APP_ID
     value: "1058206833505540"
     availability: [RUNTIME]
+
+  - variable: META_CONFIG_ID
+    value: "4480072838974668"
+    availability: [RUNTIME]
   # META_CONFIG_ID sengaja BELUM didaftarkan di sini.
   #
   # Ini id konfigurasi Embedded Signup ("Hubungkan WhatsApp lewat Facebook"),
@@ -124,11 +128,53 @@ env:
   # kurang. Jadi biarkan absen, lalu tambahkan blok ini kalau sudah punya:
   #
   #   - variable: META_CONFIG_ID
-  #     value: "1234567890"
+  #     value: "4480072838974668"
   #     availability: [RUNTIME]
 
   # ---------------------------------------------------------------------------
-  # Midtrans
+  # Penyedia pembayaran
+  #
+  # "lynkid" (default) mematikan Midtrans tanpa menghapus kodenya. Untuk
+  # menghidupkan Midtrans lagi cukup ubah kedua nilai ini ke "midtrans".
+  # NEXT_PUBLIC_* butuh BUILD karena menentukan alur di browser.
+  # ---------------------------------------------------------------------------
+  - variable: PAYMENT_PROVIDER
+    value: lynkid
+    availability: [RUNTIME]
+  - variable: NEXT_PUBLIC_PAYMENT_PROVIDER
+    value: lynkid
+    availability: [BUILD, RUNTIME]
+  # ---------------------------------------------------------------------------
+  # Lynk.id (pembayaran via webhook)
+  #
+  # Link checkout: bukan rahasia, memang dibagikan ke pelanggan.
+  #
+  # HARGA PRODUK DI LYNK.ID HARUS SAMA PERSIS dengan priceIdr di
+  # lib/billing/plans.ts (Basic 99.000, Pro 249.000). Paket ditebak dari nama
+  # produk dulu, lalu dari harga kotor sebagai cadangan — lihat tebakPlan()
+  # di lib/billing/lynkid.ts.
+  # ---------------------------------------------------------------------------
+  - variable: LYNKID_LINK_BASIC
+    value: "https://lynk.id/gallery.id/z20xeg51r81r"
+    availability: [RUNTIME]
+  - variable: LYNKID_LINK_PRO
+    value: "https://lynk.id/gallery.id/ye4m3867g0k7"
+    availability: [RUNTIME]
+  # MERCHANT KEY dari Lynk.id — bukan nilai yang kita pilih sendiri. Tanda
+  # tangan webhook dihitung Lynk.id dengan kunci ini, dan server kita
+  # menghitung ulang rumus yang sama untuk membandingkan. Kalau nilainya tidak
+  # sama persis, SETIAP webhook dibalas 403 dan tidak ada langganan yang
+  # pernah aktif — dan tidak ada rekonsiliasi yang menyelamatkannya
+  # (/api/payment/reconcile khusus Midtrans).
+  #   npx -y firebase-tools@latest apphosting:secrets:set LYNKID_WEBHOOK_SECRET
+  # URL webhook yang didaftarkan di Lynk.id → Integrasi → Webhook:
+  #   https://<domain>/api/payment/lynkid
+  - variable: LYNKID_WEBHOOK_SECRET
+    secret: LYNKID_WEBHOOK_SECRET
+    availability: [RUNTIME]
+
+  # ---------------------------------------------------------------------------
+  # Midtrans (DINONAKTIFKAN sementara — lihat PAYMENT_PROVIDER di atas)
   #
   # MIDTRANS_IS_PRODUCTION tetap "false" sampai benar-benar siap menerima uang.
   # Saat go-live: ubah kedua baris ini ke "true" DAN ganti secret + client key
