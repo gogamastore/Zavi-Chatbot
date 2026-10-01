@@ -37,6 +37,9 @@ export default function Sidebar() {
   // seluruhnya milik satu tenant, sedangkan owner tidak punya tenant.
   if (pathname === "/login" || pathname === "/daftar") return null;
   if (pathname === "/owner" || pathname.startsWith("/owner/")) return null;
+  // Halaman publik (kebijakan privasi) tidak memakai menu tenant: pengunjungnya
+  // belum tentu punya akun, dan peninjau Meta harus melihat dokumennya saja.
+  if (pathname === "/privasi") return null;
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
