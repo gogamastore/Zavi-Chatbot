@@ -281,9 +281,53 @@ export default function LanggananPage() {
             <>
               <h2 className="font-semibold text-lg mb-3">Pilih paket</h2>
               <div className="grid sm:grid-cols-2 gap-4">
-                {plans.map((p) => (
-                  <div key={p.id} className="card p-5 flex flex-col">
-                    <div className="font-semibold text-lg">{p.name}</div>
+                {plans.map((p) => {
+                  // Paket yang sedang dipakai: statusnya berbayar DAN id-nya sama.
+                  // "past_due" ikut dihitung sedang dipakai — masa tenggang itu
+                  // tetap paket yang sama, cuma lewat jatuh tempo.
+                  const berbayar =
+                    entitlement?.status === "active" || entitlement?.status === "past_due";
+                  const paketSaya = berbayar && entitlement?.planId === p.id;
+
+                  // Tombol paket sendiri dimatikan — TAPI dihidupkan lagi saat
+                  // mendekati habis. Kalau dimatikan mentah, pelanggan yang masa
+                  // aktifnya tinggal sehari tidak punya cara memperpanjang sama
+                  // sekali. Pembayaran ulang memang memperpanjang: masa aktif
+                  // dihitung dari sisa yang ada, jadi hari yang sudah dibayar
+                  // tidak hilang.
+                  const sisaHari = entitlement?.periodDaysLeft ?? 0;
+                  const bolehPerpanjang =
+                    paketSaya && (sisaHari <= 7 || entitlement?.status === "past_due");
+
+                  const label = paketSaya
+                    ? bolehPerpanjang
+                      ? `Perpanjang ${p.name}`
+                      : "Paket saat ini"
+                    : berbayar
+                      ? `Ganti ke ${p.name}`
+                      : `Berlangganan ${p.name}`;
+
+                  return (
+                  <div
+                    key={p.id}
+                    className="card p-5 flex flex-col"
+                    style={
+                      paketSaya
+                        ? { borderColor: "var(--wa-green)", borderWidth: 2 }
+                        : undefined
+                    }
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-semibold text-lg">{p.name}</div>
+                      {paketSaya && (
+                        <span
+                          className="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0"
+                          style={{ background: "var(--wa-green-dark)", color: "#fff" }}
+                        >
+                          Paket Anda
+                        </span>
+                      )}
+                    </div>
                     <div className="text-2xl font-bold mt-1">
                       {formatIdr(p.priceIdr)}
                       <span className="text-sm font-normal text-[var(--muted)]"> / bulan</span>
@@ -297,15 +341,22 @@ export default function LanggananPage() {
                       ))}
                     </ul>
                     <button
-                      className="btn btn-primary w-full mt-5"
+                      className={`btn w-full mt-5 ${paketSaya && !bolehPerpanjang ? "btn-ghost" : "btn-primary"}`}
                       onClick={() => beliPaket(p)}
-                      disabled={proses !== null || isDemo}
-                      title={isDemo ? "Mode demo tidak bisa membayar" : undefined}
+                      disabled={proses !== null || isDemo || (paketSaya && !bolehPerpanjang)}
+                      title={
+                        isDemo
+                          ? "Mode demo tidak bisa membayar"
+                          : paketSaya && !bolehPerpanjang
+                            ? `Sudah aktif, sisa ${sisaHari} hari. Tombol perpanjang muncul 7 hari sebelum habis.`
+                            : undefined
+                      }
                     >
-                      {proses === p.id ? "Memproses…" : `Berlangganan ${p.name}`}
+                      {proses === p.id ? "Memproses…" : label}
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <h2 className="font-semibold text-lg mb-1 mt-8">Beli kredit AI</h2>

@@ -106,6 +106,7 @@ export function computeEntitlement(sub: Subscription, now = Date.now()): Entitle
 
   const trialDaysLeft =
     status === "trial" || status === "pending" ? sisaHari(sub.trialEndsAt, now) : 0;
+  const periodDaysLeft = sub.currentPeriodEnd ? sisaHari(sub.currentPeriodEnd, now) : 0;
 
   const aiRepliesLimit = plan.aiRepliesPerMonth;
   const aiRepliesUsed = sub.aiRepliesUsed ?? 0;
@@ -138,6 +139,7 @@ export function computeEntitlement(sub: Subscription, now = Date.now()): Entitle
     planId: sub.planId,
     locked,
     trialDaysLeft,
+    periodDaysLeft,
     trialEndingSoon: (status === "trial" || status === "pending") && trialDaysLeft <= 1,
     features,
     aiRepliesUsed,
@@ -175,6 +177,7 @@ export function ownerEntitlement(sub: Subscription | null): Entitlement {
     planId: "owner",
     locked: false,
     trialDaysLeft: 0,
+    periodDaysLeft: 0,
     trialEndingSoon: false,
     features,
     aiRepliesUsed,
@@ -196,6 +199,7 @@ export function lockedEntitlement(reason = "Akun belum aktif."): Entitlement {
     planId: "trial",
     locked: true,
     trialDaysLeft: 0,
+    periodDaysLeft: 0,
     trialEndingSoon: false,
     features,
     aiRepliesUsed: 0,

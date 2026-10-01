@@ -287,6 +287,14 @@ export interface Entitlement {
   locked: boolean;
   /** Sisa hari percobaan (0 kalau bukan/sudah lewat masa trial). */
   trialDaysLeft: number;
+  /**
+   * Sisa hari periode BERBAYAR (0 kalau belum pernah berlangganan).
+   *
+   * Dihitung di server, bukan di browser, supaya halaman tidak perlu
+   * memanggil Date.now() saat render — render yang tidak murni itu sumber bug
+   * yang sulit dilacak, dan lint proyek ini memang menolaknya.
+   */
+  periodDaysLeft: number;
   /** True saat trial tinggal <= 1 hari — UI menampilkan peringatan. */
   trialEndingSoon: boolean;
   /** Peta fitur → boleh dipakai atau tidak. */
