@@ -336,11 +336,35 @@ Detail lengkap: [`catatan/2026-09-29-sesi-11-lynkid.md`](./catatan/2026-09-29-se
   (403/200/503).
 
 ### ⏳ Belum / langkah berikutnya
-1. **Go-live Lynk.id** — buat 2 produk/link checkout di Lynk.id (isi
-   `LYNKID_LINK_BASIC/PRO`), daftarkan URL webhook `https://<domain>/api/payment/lynkid`,
-   lalu isi merchant key ke `LYNKID_WEBHOOK_SECRET`. **Penghalang nomor satu.**
-2. **Keputusan UI langganan** — tambahkan instruksi "isi Email akun Zavi" saat
-   checkout, atau cukup andalkan email yang sama. (Menunggu jawaban pemilik.)
+> ### ✅ Lynk.id SUDAH LIVE & terbukti (1 Okt 2026)
+>
+> Pembayaran sungguhan Rp 99.000 berhasil end-to-end: webhook balas 200 dan
+> langganan aktif otomatis. Terverifikasi langsung di Firestore —
+> `payments/ZAVILYNK-…MUPKOC0K` status `paid`, `subscriptions` jadi
+> `active` paket **basic** (bukan salah tebak jadi pro), berlaku **tepat 30
+> hari** dari tanggal bayar, dan kuota AI ter-reset ke 0.
+>
+> Jadi kelima hal yang sebelumnya belum terbukti kini terbukti sekaligus:
+> merchant key cocok, verifikasi tanda tangan jalan, pencocokan tenant lewat
+> email berhasil, penebakan paket benar, dan perhitungan masa aktif benar.
+>
+> Catatan operasional: ada beberapa dokumen `payments` berstatus `pending` —
+> itu checkout yang dibuka lalu tidak diselesaikan. Normal, biarkan sebagai
+> jejak audit.
+>
+> **Pertanyaan UI langganan sudah terjawab:** pertanyaan kustom "Email akun
+> Zavi Anda" dipasang di checkout Lynk.id, dan kode memprioritaskannya di
+> atas email pembeli. Itu yang menyelamatkan kasus pemilik warung yang
+> membayar memakai email lain.
+
+1. ⚠️ **Jebakan nama produk Lynk.id (BELUM diperbaiki).** `tebakPlan()`
+   memeriksa `judul.includes("pro")` SEBELUM `"basic"`, tanpa batas kata.
+   Jadi produk bernama `"Zavi Basic (Promo)"` akan diaktifkan sebagai **Pro**
+   — pelanggan bayar Rp 99.000, dapat paket Rp 249.000. Sekarang aman karena
+   nama produknya tepat `Zavi Basic` / `Zavi Pro`, tapi promo itu pasti
+   terjadi. Perbaikannya: periksa `"basic"` lebih dulu + pencocokan batas kata.
+2. **Beli kredit AI** masih mati — dulu lewat Midtrans, belum dipindah ke
+   Lynk.id.
 3. **Beli kredit AI lewat Lynk.id** — sementara dimatikan (dulu via Midtrans).
 4. **Hubungkan WhatsApp asli** — UI sambungan sudah ada di /settings/whatsapp;
    tinggal isi App Secret + nomor tes dari Meta.
