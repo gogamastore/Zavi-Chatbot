@@ -16,8 +16,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-/** Ganti ke alamat yang memang dipantau sebelum dipublikasikan. */
-const KONTAK = "support@gogamalab.com";
+/**
+ * Alamat kontak yang tampil di kebijakan privasi — SATU tempat untuk diganti.
+ *
+ * Sementara memakai email pribadi pemilik atas permintaannya sendiri. Begitu
+ * alamat bisnis tersedia, ganti di sini saja: nilainya dipakai di tiga tempat
+ * pada halaman ini.
+ */
+const KONTAK = "enerinsanmulia@gmail.com";
 const BISNIS = "Gallery Makassar";
 const DIPERBARUI = "1 Oktober 2026";
 
