@@ -47,7 +47,7 @@ export default function DaftarPage() {
           onSelesai={() => setLangkah(2)}
         />
       ) : (
-        <LangkahBisnis onSelesai={() => router.replace("/")} />
+        <LangkahBisnis onSelesai={() => router.replace("/dashboard")} />
       )}
     </AuthShell>
   );

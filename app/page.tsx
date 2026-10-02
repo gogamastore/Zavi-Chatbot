@@ -1,230 +1,261 @@
-"use client";
-
-import { useEffect, useState } from "react";
+// ---------------------------------------------------------------------------
+// Beranda PUBLIK — halaman yang dilihat orang sebelum punya akun.
+//
+// Dulu root ini adalah dasbor (kini di /dashboard). Diubah karena dua alasan
+// yang sama-sama nyata:
+//
+//  1. Verifikasi Penyedia Teknologi Meta meminta "URL ke situs web lengkap yang
+//     menunjukkan layanan yang Anda jelaskan dan detail bisnis yang
+//     menyediakannya". Peninjau yang mendarat di halaman login akan menolak.
+//  2. Calon mitra yang dikirimi tautan Zavi juga langsung disuruh login sebelum
+//     tahu Zavi itu apa dan berapa harganya. Itu kehilangan pelanggan.
+//
+// Server component tanpa "use client" — SELURUH isinya harus ada di HTML mentah
+// supaya crawler Meta dan mesin pencari membacanya. Halaman yang isinya baru
+// muncul setelah JavaScript jalan akan terbaca kosong.
+//
+// Harga diambil dari lib/billing/plans.ts, bukan ditulis ulang di sini: harga
+// di halaman jualan tidak boleh bisa berbeda dari harga yang ditagihkan.
+// ---------------------------------------------------------------------------
+import type { Metadata } from "next";
 import Link from "next/link";
-import { PageHeader } from "@/components/ui";
-import { TrialBanner } from "@/components/Gate";
-import { apiFetch } from "@/lib/api/client";
-import type { Stats } from "@/lib/types";
+import { PURCHASABLE_PLANS, TRIAL_DAYS, formatIdr } from "@/lib/billing/plans";
 
-interface AIHealthInfo {
-  status: "belum-dikonfigurasi" | "belum-diperiksa" | "berfungsi" | "gagal";
-  provider: string;
-  model: string;
-  lastError?: string;
-  checkedAt?: number;
-  sumber?: string;
-  saran?: string;
-}
+const BISNIS = "Gallery Makassar";
 
-interface SystemInfo {
-  storage: "firestore" | "memory";
-  ai: AIHealthInfo;
-  whatsapp: boolean;
-  firestore: boolean;
-  demo: boolean;
-}
+export const metadata: Metadata = {
+  title: "Zavi — Chatbot WhatsApp untuk UMKM",
+  description:
+    "Zavi membalas chat pelanggan di WhatsApp 24 jam, menjawab pertanyaan dengan AI dari katalog Anda sendiri, dan mencatat pesanan otomatis. Coba gratis 3 hari.",
+};
 
-export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [system, setSystem] = useState<SystemInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  async function load() {
-    try {
-      const data = await apiFetch<{ stats: Stats; system: SystemInfo }>("/api/stats");
-      setStats(data.stats);
-      setSystem(data.system);
-    } catch {
-      // Belum login / terkunci — banner dan halaman login yang menanganinya.
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 8000);
-    return () => clearInterval(t);
-  }, []);
-
+export default function BerandaPage() {
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto">
-      <TrialBanner />
-      <PageHeader
-        title="Dashboard"
-        subtitle="Ringkasan aktivitas bot Zavi. Diperbarui otomatis."
+    <div className="min-h-screen">
+      <header
+        className="text-white"
+        style={{ background: "linear-gradient(160deg, var(--wa-teal), #0b4f47)" }}
       >
-        <Link href="/simulator" className="btn btn-primary">
-          💬 Coba Simulator
-        </Link>
-      </PageHeader>
-
-      {loading && !stats ? (
-        <div className="text-sm text-[var(--muted)]">Memuat…</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatCard label="Total Chat" value={stats?.totalChats ?? 0} icon="💬" />
-            <StatCard label="Percakapan" value={stats?.totalConversations ?? 0} icon="👥" />
-            <StatCard label="Total Pesanan" value={stats?.totalOrders ?? 0} icon="🛒" />
-            <StatCard
-              label="Perlu Admin"
-              value={stats?.needsHuman ?? 0}
-              icon="🙋"
-              highlight={(stats?.needsHuman ?? 0) > 0}
-            />
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* Orders breakdown */}
-            <div className="card p-5">
-              <h2 className="font-semibold mb-4">Pesanan per Status</h2>
-              <div className="space-y-3">
-                <StatusRow label="Baru" value={stats?.ordersByStatus.baru ?? 0} color="#1d4ed8" total={stats?.totalOrders ?? 0} />
-                <StatusRow label="Diproses" value={stats?.ordersByStatus.diproses ?? 0} color="#b45309" total={stats?.totalOrders ?? 0} />
-                <StatusRow label="Selesai" value={stats?.ordersByStatus.selesai ?? 0} color="#1a7f37" total={stats?.totalOrders ?? 0} />
-                <StatusRow label="Batal" value={stats?.ordersByStatus.batal ?? 0} color="#6b7280" total={stats?.totalOrders ?? 0} />
-              </div>
-              <Link href="/orders" className="btn btn-ghost w-full mt-4 text-sm">
-                Kelola pesanan →
-              </Link>
+        <nav className="flex items-center justify-between gap-3 px-5 md:px-10 py-4 max-w-5xl mx-auto">
+          <div className="flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="" width={36} height={36} className="w-9 h-9 rounded-xl" />
+            <div className="leading-tight">
+              <div className="font-bold">Zavi</div>
+              <div className="text-[11px] text-white/60">WA Assistant</div>
             </div>
+          </div>
+          <div className="flex gap-2">
+            <Link href="/login" className="btn btn-ghost text-white border-white/30">
+              Masuk
+            </Link>
+            <Link
+              href="/daftar"
+              className="btn"
+              style={{ background: "var(--wa-green)", color: "#053d36" }}
+            >
+              Coba gratis
+            </Link>
+          </div>
+        </nav>
 
-            {/* Reply mix + system */}
-            <div className="space-y-6">
-              <div className="card p-5">
-                <h2 className="font-semibold mb-4">Sumber Balasan</h2>
-                <div className="flex gap-4">
-                  <MiniStat label="Rule / Menu" value={stats?.ruleReplies ?? 0} sub="template cepat" />
-                  <MiniStat label="AI (Claude)" value={stats?.aiReplies ?? 0} sub="jawaban fleksibel" />
+        <div className="px-5 md:px-10 pb-14 pt-6 max-w-5xl mx-auto">
+          <h1 className="text-3xl md:text-5xl font-bold leading-tight max-w-2xl">
+            Chat pelanggan terjawab, bahkan saat Anda tidur.
+          </h1>
+          <p className="mt-4 text-white/80 max-w-2xl text-[17px]">
+            Zavi adalah asisten WhatsApp untuk usaha kecil di Indonesia. Ia membalas
+            pertanyaan pelanggan 24 jam, menjawab dari katalog dan info usaha Anda
+            sendiri, lalu mencatat pesanan yang masuk — tanpa Anda perlu memegang
+            ponsel terus.
+          </p>
+          <div className="flex flex-wrap gap-3 mt-7">
+            <Link
+              href="/daftar"
+              className="btn"
+              style={{ background: "var(--wa-green)", color: "#053d36" }}
+            >
+              Coba gratis {TRIAL_DAYS} hari
+            </Link>
+            <Link href="#harga" className="btn btn-ghost text-white border-white/30">
+              Lihat harga
+            </Link>
+          </div>
+          <p className="text-xs text-white/60 mt-3">
+            Tanpa kartu kredit. Tanpa aplikasi tambahan di ponsel Anda.
+          </p>
+        </div>
+      </header>
+
+      <main className="px-5 md:px-10 py-12 max-w-5xl mx-auto">
+        <section>
+          <h2 className="text-2xl font-bold">Apa yang Zavi kerjakan</h2>
+          <div className="grid sm:grid-cols-2 gap-4 mt-5">
+            <Kartu ikon="💬" judul="Membalas pertanyaan yang itu-itu terus">
+              Jam buka, alamat, cara pesan, cara bayar — dijawab seketika dengan
+              jawaban yang Anda tentukan sendiri.
+            </Kartu>
+            <Kartu ikon="✨" judul="Menjawab pertanyaan bebas dengan AI">
+              &quot;Ada ukuran L warna hitam?&quot; dijawab dari katalog Anda, bukan
+              dibalas daftar harga yang panjang.
+            </Kartu>
+            <Kartu ikon="🛒" judul="Mencatat pesanan otomatis">
+              Pesanan yang masuk lewat chat langsung tercatat, lengkap dengan
+              statusnya, supaya tidak ada yang terlewat.
+            </Kartu>
+            <Kartu ikon="📚" judul="Belajar dari data Anda sendiri">
+              Unggah katalog dari Excel, atau biarkan Zavi membaca halaman produk
+              di website Anda. Tidak ada jawaban yang dikarang.
+            </Kartu>
+          </div>
+        </section>
+
+        <section className="mt-14">
+          <h2 className="text-2xl font-bold">Cara mulai</h2>
+          <ol className="mt-5 space-y-4">
+            <Langkah n={1} judul="Daftar dan isi profil usaha">
+              Nama usaha, jam buka, katalog, cara pesan. Zavi langsung bisa dicoba di
+              simulator, tanpa menyambungkan WhatsApp dulu.
+            </Langkah>
+            <Langkah n={2} judul="Hubungkan nomor WhatsApp Business Anda">
+              Satu tombol lewat akun Facebook Anda. Tidak perlu membuat aplikasi Meta
+              sendiri dan tidak perlu menyalin kode apa pun.
+            </Langkah>
+            <Langkah n={3} judul="Biarkan Zavi bekerja">
+              Pantau chat dan pesanan dari dasbor. Anda tetap bisa mengambil alih
+              percakapan kapan saja.
+            </Langkah>
+          </ol>
+        </section>
+
+        <section id="harga" className="mt-14 scroll-mt-6">
+          <h2 className="text-2xl font-bold">Harga</h2>
+          <p className="text-[var(--muted)] mt-1">
+            Coba {TRIAL_DAYS} hari gratis lebih dulu. Semua fitur terbuka selama masa
+            percobaan.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4 mt-5">
+            {PURCHASABLE_PLANS.map((p) => (
+              <div key={p.id} className="card p-5 flex flex-col">
+                <div className="font-semibold text-lg">{p.name}</div>
+                <div className="text-3xl font-bold mt-1">
+                  {formatIdr(p.priceIdr)}
+                  <span className="text-sm font-normal text-[var(--muted)]"> / bulan</span>
                 </div>
-              </div>
-
-              <div className="card p-5">
-                <h2 className="font-semibold mb-4">Status Sistem</h2>
-                {system && (
-                  <div className="space-y-2 text-sm">
-                    <SystemRow
-                      label="Penyimpanan"
-                      ok={system.storage === "firestore"}
-                      value={system.storage === "firestore" ? "Firestore" : "Memory (demo)"}
-                      warnOnFalse
-                    />
-                    <AIRow ai={system.ai} />
-                    <SystemRow label="WhatsApp Cloud API" ok={system.whatsapp} value={system.whatsapp ? "terhubung" : "belum diatur"} />
-                  </div>
-                )}
-                <Link href="/settings" className="btn btn-ghost w-full mt-4 text-sm">
-                  Buka pengaturan →
+                <ul className="mt-4 space-y-1.5 text-sm flex-1">
+                  {p.highlights.map((h) => (
+                    <li key={h} className="flex gap-2">
+                      <span style={{ color: "var(--wa-green-dark)" }}>✓</span>
+                      <span>{h}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/daftar" className="btn btn-primary w-full mt-5">
+                  Mulai dengan {p.name}
                 </Link>
               </div>
-            </div>
+            ))}
           </div>
-        </>
-      )}
+          <p className="text-xs text-[var(--muted)] mt-4">
+            Pembayaran diproses Lynk.id. Langganan aktif otomatis setelah pembayaran
+            dikonfirmasi — tidak perlu menunggu admin.
+          </p>
+        </section>
+
+        <section className="mt-14">
+          <h2 className="text-2xl font-bold">Tentang penyelenggara</h2>
+          <p className="mt-3 max-w-2xl">
+            Zavi — WA Assistant dikembangkan dan dioperasikan oleh{" "}
+            <strong>{BISNIS}</strong>, penyedia teknologi dari Indonesia. Kami
+            menyediakan layanan chatbot WhatsApp berbasis AI untuk pelaku usaha, serta
+            pembuatan portofolio web dan halaman penjualan.
+          </p>
+          <p className="mt-3 max-w-2xl text-[var(--muted)]">
+            Zavi memakai WhatsApp Business Cloud API resmi dari Meta. Setiap mitra
+            menyambungkan nomor WhatsApp Business miliknya sendiri, dan tetap menjadi
+            pemilik data pelanggannya. Rinciannya ada di{" "}
+            <Link href="/privasi" className="text-[var(--wa-teal)] underline">
+              Kebijakan Privasi
+            </Link>
+            .
+          </p>
+        </section>
+
+        <section className="mt-14 card p-6 text-center">
+          <h2 className="text-xl font-bold">Coba dulu, gratis {TRIAL_DAYS} hari</h2>
+          <p className="text-[var(--muted)] mt-1.5">
+            Tanpa kartu kredit. Kalau tidak cocok, tinggal berhenti.
+          </p>
+          <Link href="/daftar" className="btn btn-primary mt-5 inline-block">
+            Daftar sekarang
+          </Link>
+        </section>
+      </main>
+
+      <footer className="border-t border-[var(--border)] px-5 md:px-10 py-8">
+        <div className="max-w-5xl mx-auto flex flex-wrap justify-between gap-4 text-sm text-[var(--muted)]">
+          <div>
+            <div className="font-semibold text-[var(--fg)]">Zavi — WA Assistant</div>
+            <div className="mt-0.5">Dioperasikan oleh {BISNIS}, Indonesia</div>
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <Link href="/privasi" className="hover:underline">
+              Kebijakan Privasi
+            </Link>
+            <Link href="/login" className="hover:underline">
+              Masuk
+            </Link>
+            <Link href="/daftar" className="hover:underline">
+              Daftar
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  highlight,
+function Kartu({
+  ikon,
+  judul,
+  children,
 }: {
-  label: string;
-  value: number;
-  icon: string;
-  highlight?: boolean;
+  ikon: string;
+  judul: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="card p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-2xl">{icon}</span>
-        {highlight && <span className="badge src-human">!</span>}
+    <div className="card p-5">
+      <div className="text-2xl" aria-hidden="true">
+        {ikon}
       </div>
-      <div className="text-3xl font-bold mt-2">{value}</div>
-      <div className="text-xs text-[var(--muted)] mt-1">{label}</div>
+      <div className="font-semibold mt-2">{judul}</div>
+      <p className="text-sm text-[var(--muted)] mt-1">{children}</p>
     </div>
   );
 }
 
-function StatusRow({ label, value, color, total }: { label: string; value: number; color: string; total: number }) {
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+function Langkah({
+  n,
+  judul,
+  children,
+}: {
+  n: number;
+  judul: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span>{label}</span>
-        <span className="font-semibold">{value}</span>
-      </div>
-      <div className="h-2 rounded-full bg-[var(--surface-2)] overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-      </div>
-    </div>
-  );
-}
-
-function MiniStat({ label, value, sub }: { label: string; value: number; sub: string }) {
-  return (
-    <div className="flex-1 rounded-lg bg-[var(--surface-2)] p-3">
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs font-medium mt-1">{label}</div>
-      <div className="text-[11px] text-[var(--muted)]">{sub}</div>
-    </div>
-  );
-}
-
-/**
- * Baris status AI — sengaja menampilkan kondisi SEBENARNYA.
- *
- * Sebelumnya baris ini hijau begitu API key terisi, padahal setiap panggilan
- * gagal karena saldo habis. Indikator yang berbohong membuat orang mencari
- * masalah di tempat yang salah, jadi di sini alasan kegagalan ikut ditampilkan.
- */
-function AIRow({ ai }: { ai: AIHealthInfo }) {
-  const tampilan = {
-    "berfungsi": { warna: "var(--wa-green)", teks: `${ai.provider} · ${ai.model}` },
-    "gagal": { warna: "#dc2626", teks: "bermasalah" },
-    "belum-dikonfigurasi": { warna: "#cbd5e1", teks: "belum diatur" },
-    "belum-diperiksa": { warna: "#f59e0b", teks: "belum diperiksa" },
-  }[ai.status];
-
-  return (
-    <div>
-      <div className="flex items-center justify-between">
-        <span className="text-[var(--muted)]">AI</span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full" style={{ background: tampilan.warna }} />
-          {tampilan.teks}
-        </span>
-      </div>
-      {ai.status === "gagal" && (
-        <div className="mt-1.5 rounded-md px-2.5 py-1.5 text-xs" style={{ background: "#fef2f2", color: "#991b1b" }}>
-          <div className="font-medium">{ai.saran ?? "Panggilan ke penyedia AI gagal."}</div>
-          {ai.lastError && (
-            <div className="mt-0.5 opacity-80 break-words">{ai.lastError}</div>
-          )}
-          <Link href="/settings/ai" className="underline mt-1 inline-block">
-            Buka Pengaturan AI →
-          </Link>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SystemRow({ label, ok, value, warnOnFalse }: { label: string; ok: boolean; value: string; warnOnFalse?: boolean }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-[var(--muted)]">{label}</span>
-      <span className="flex items-center gap-1.5">
-        <span
-          className="w-2 h-2 rounded-full"
-          style={{ background: ok ? "var(--wa-green)" : warnOnFalse ? "#f59e0b" : "#cbd5e1" }}
-        />
-        {value}
+    <li className="flex gap-4">
+      <span
+        className="grid place-items-center w-8 h-8 rounded-full font-bold text-sm shrink-0"
+        style={{ background: "var(--surface-2)" }}
+      >
+        {n}
       </span>
-    </div>
+      <div>
+        <div className="font-semibold">{judul}</div>
+        <p className="text-sm text-[var(--muted)] mt-0.5">{children}</p>
+      </div>
+    </li>
   );
 }

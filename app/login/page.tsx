@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loading && user) router.replace("/");
+    if (!loading && user) router.replace("/dashboard");
   }, [loading, user, router]);
 
   async function masuk(e: React.FormEvent) {
@@ -24,7 +24,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await loginEmail(email.trim(), password);
-      router.replace("/");
+      router.replace("/dashboard");
     } catch (err) {
       setError(pesanErrorAuth(err));
     } finally {
@@ -37,7 +37,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await loginGoogle();
-      router.replace("/");
+      router.replace("/dashboard");
     } catch (err) {
       setError(pesanErrorAuth(err));
     } finally {

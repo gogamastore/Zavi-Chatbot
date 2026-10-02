@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth/context";
 import { useSubscription } from "@/lib/hooks/useSubscription";
 
 const NAV = [
-  { href: "/", label: "Dashboard", icon: "📊" },
+  { href: "/dashboard", label: "Dashboard", icon: "📊" },
   { href: "/simulator", label: "Simulator", icon: "💬" },
   { href: "/chats", label: "Riwayat Chat", icon: "🗂️" },
   { href: "/orders", label: "Pesanan", icon: "🛒" },
@@ -35,14 +35,15 @@ export default function Sidebar() {
 
   // Halaman auth tampil penuh tanpa sidebar. Area owner juga: menu di sini
   // seluruhnya milik satu tenant, sedangkan owner tidak punya tenant.
-  if (pathname === "/login" || pathname === "/daftar") return null;
+  // Root kini halaman publik (beranda pemasaran), bukan dasbor — sidebar
+  // tenant tidak boleh muncul di sana.
+  if (pathname === "/" || pathname === "/login" || pathname === "/daftar") return null;
   if (pathname === "/owner" || pathname.startsWith("/owner/")) return null;
   // Halaman publik (kebijakan privasi) tidak memakai menu tenant: pengunjungnya
   // belum tentu punya akun, dan peninjau Meta harus melihat dokumennya saja.
   if (pathname === "/privasi") return null;
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const isActive = (href: string) => pathname.startsWith(href);
 
   async function keluar() {
     await logout();

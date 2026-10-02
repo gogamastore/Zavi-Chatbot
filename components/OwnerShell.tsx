@@ -43,7 +43,7 @@ export function OwnerShell({
           </div>
           <div className="flex flex-wrap gap-2">
             {aksi}
-            <Link href="/" className="btn btn-ghost text-white border-white/30">
+            <Link href="/dashboard" className="btn btn-ghost text-white border-white/30">
               Buka aplikasi
             </Link>
             <button onClick={keluar} className="btn btn-ghost text-white border-white/30">
