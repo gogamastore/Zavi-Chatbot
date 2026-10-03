@@ -53,11 +53,80 @@ export interface Order {
   updatedAt: number;
 }
 
-/** One item in the business catalog. */
+/**
+ * Satu baris katalog untuk DITAMPILKAN.
+ *
+ * `price` sengaja teks supaya pemilik bisa menulis "Rp 15.000 / porsi" atau
+ * "Hubungi admin". Bentuk ini tetap dipertahankan karena inilah yang dibaca
+ * bot dan prompt AI.
+ *
+ * TAPI bentuk ini TIDAK BISA dipakai berhitung — laporan penjualan dan POS
+ * tidak bisa menjumlahkan teks. Sumber kebenaran untuk angka adalah
+ * `Product` di bawah; CatalogItem diturunkan darinya lewat
+ * produkKeKatalog() di lib/store/produk.ts.
+ */
 export interface CatalogItem {
   name: string;
-  price: string; // kept as string so businesses can write "Rp 15.000 / porsi"
+  price: string;
   description?: string;
+}
+
+// --- Toko: produk, kategori, pesanan ---------------------------------------
+
+/**
+ * Satu produk. Firestore: "tenants/{tid}/products/{id}".
+ *
+ * Nama field diselaraskan dengan model Product di Gama POS (name, price,
+ * stock, sku, image, purchasePrice, description, categoryId, weightGram)
+ * supaya penggabungan kedua sistem nanti jadi pemindahan data, bukan
+ * penerjemahan skema.
+ *
+ * Perbedaan penting dari CatalogItem: `price` di sini ANGKA. Itu syarat agar
+ * total pesanan, laba, dan laporan penjualan bisa dihitung.
+ */
+export interface Product {
+  id: string;
+  name: string;
+  /** Harga jual dalam Rupiah. Angka bulat — Rupiah tidak punya pecahan. */
+  price: number;
+  /**
+   * Satuan untuk ditampilkan, mis. "porsi", "pcs", "kg". Kosong = tanpa
+   * satuan. Inilah pengganti kebebasan menulis "Rp 15.000 / porsi" dulu:
+   * angkanya tetap bisa dihitung, tampilannya tetap manusiawi.
+   */
+  unit?: string;
+  /**
+   * Stok. `null` berarti TIDAK DILACAK — dan itu keadaan yang sah, bukan
+   * data yang belum diisi. Warung makan dan penyedia jasa tidak punya stok;
+   * memaksa mereka mengisi angka hanya melahirkan angka bohong yang nanti
+   * dijanjikan AI ke pelanggan.
+   */
+  stock?: number | null;
+  sku?: string;
+  description?: string;
+  categoryId?: string;
+  imageUrl?: string;
+  /**
+   * Harga beli, untuk menghitung laba di laporan.
+   * JANGAN PERNAH dikirim ke toko publik atau ke prompt AI.
+   */
+  purchasePrice?: number;
+  /** Berat gram, untuk menghitung ongkir nanti. */
+  weightGram?: number;
+  /** Produk nonaktif tetap tersimpan (riwayat pesanan butuh namanya) tapi
+   * tidak muncul di toko, POS, maupun prompt AI. */
+  active: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Kategori produk. Firestore: "tenants/{tid}/categories/{id}". */
+export interface ProductCategory {
+  id: string;
+  name: string;
+  /** Urutan tampil. Makin kecil makin atas. */
+  order?: number;
+  createdAt: number;
 }
 
 /** Business profile that shapes every reply. Firestore: config/business. */
